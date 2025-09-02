@@ -519,10 +519,19 @@
         }
 
         function addManualEntry() {
-            const type = document.getElementById('manualType').value;
+            const typeSelect = document.getElementById('manualType');
+            const type = typeSelect.value;
+            const selectedTypeText = typeSelect.options[typeSelect.selectedIndex].text;
             const timeStr = document.getElementById('manualTime').value;
+
             if (!timeStr) {
                 showAlert('Introduce una hora válida', 'warning');
+                return;
+            }
+
+            const existingEntry = todayData.entries.find(entry => entry.type === type);
+            if (existingEntry) {
+                showAlert(`Ya existe un registro de "${selectedTypeText}" para hoy.`, 'warning');
                 return;
             }
 
