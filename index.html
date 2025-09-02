@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Jornada Flexible</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4a90e2, #357abd);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .date-time {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 30px;
+        }
+
+        .status-card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border-left: 5px solid #4a90e2;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .status-item {
+            text-align: center;
+        }
+
+        .status-label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .status-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .working {
+            color: #28a745;
+        }
+
+        .overtime {
+            color: #dc3545;
+        }
+
+        .action-button {
+            width: 100%;
+            padding: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-enter {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+        }
+
+        .btn-exit {
+            background: linear-gradient(135deg, #dc3545, #fd7e14);
+            color: white;
+        }
+
+        .btn-lunch-out {
+            background: linear-gradient(135deg, #ffc107, #fd7e14);
+            color: white;
+        }
+
+        .btn-lunch-back {
+            background: linear-gradient(135deg, #17a2b8, #6f42c1);
+            color: white;
+        }
+
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .overtime-section {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .overtime-section.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1rem;
+        }
+
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #4a90e2;
+        }
+
+        .confirm-btn {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .history-section {
+            margin-top: 30px;
+        }
+
+        .history-toggle {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+
+        .history-content {
+            display: none;
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+        }
+
+        .history-content.active {
+            display: block;
+        }
+
+        .day-record {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #4a90e2;
+        }
+
+        .day-header {
+            font-weight: bold;
+            color: #4a90e2;
+            margin-bottom: 10px;
+        }
+
+        .time-entry {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+
+        .overtime-entry {
+            color: #dc3545;
+            font-style: italic;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 0;
+                border-radius: 0;
+                min-height: 100vh;
+            }
+
+            .status-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Control de Jornada Flexible</h1>
+            <div class="date-time" id="currentDateTime"></div>
+        </div>
+
+        <div class="main-content">
+            <div id="alertContainer"></div>
+
+            <div class="status-card">
+                <div class="status-grid">
+                    <div class="status-item">
+                        <div class="status-label">Estado</div>
+                        <div class="status-value" id="workStatus">Fuera</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">Horas Trabajadas</div>
+                        <div class="status-value" id="workedHours">00:00</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">Horas Restantes</div>
+                        <div class="status-value" id="remainingHours">--:--</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">Hora Estimada Salida</div>
+                        <div class="status-value" id="estimatedExit">--:--</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="actionButtons">
+                <button class="action-button btn-enter" id="enterBtn" onclick="handleAction('enter')">
+                    Entrada
+                </button>
+                <button class="action-button btn-lunch-out" id="lunchOutBtn" onclick="handleAction('lunch_out')" style="display: none;">
+                    Salir a Comer
+                </button>
+                <button class="action-button btn-lunch-back" id="lunchBackBtn" onclick="handleAction('lunch_back')" style="display: none;">
+                    Volver de Comer
+                </button>
+                <button class="action-button btn-exit" id="exitBtn" onclick="handleAction('exit')" style="display: none;">
+                    Salida
+                </button>
+            </div>
+
+            <div class="overtime-section" id="overtimeSection">
+                <h3>Horario Extraordinario</h3>
+                <p>Esta acción está fuera del horario establecido. Por favor, proporciona los detalles:</p>
+                
+                <div class="form-group">
+                    <label for="overtimeReason">Motivo:</label>
+                    <select id="overtimeReason">
+                        <option value="">Seleccionar motivo...</option>
+                        <option value="reunion_urgente">Reunión urgente</option>
+                        <option value="proyecto_critico">Proyecto crítico</option>
+                        <option value="problema_tecnico">Problema técnico</option>
+                        <option value="cliente_importante">Atención cliente importante</option>
+                        <option value="formacion">Formación</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="overtimeDescription">Descripción:</label>
+                    <input type="text" id="overtimeDescription" placeholder="Describe brevemente la situación...">
+                </div>
+                
+                <button class="confirm-btn" onclick="confirmOvertimeAction()">Confirmar</button>
+            </div>
+
+            <div class="history-section">
+                <button class="history-toggle" onclick="toggleHistory()">Ver Historial Semanal</button>
+                <div class="history-content" id="historyContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentState = 'out'; // out, in, lunch_out, lunch_back
+        let todayData = {
+            date: new Date().toISOString().split('T')[0],
+            entries: [],
+            workedMinutes: 0,
+            lunchMinutes: 0
+        };
+        let pendingAction = null;
+        let workTimer = null;
+
+        // Horarios de trabajo
+        const SCHEDULE = {
+            weekday: {
+                minEntry: { hour: 7, minute: 0 },
+                maxEntry: { hour: 9, minute: 0 },
+                minExit: { hour: 17, minute: 0 },
+                maxExit: { hour: 19, minute: 0 },
+                mandatoryStart: { hour: 9, minute: 0 },
+                mandatoryEnd: { hour: 17, minute: 0 },
+                lunchStart: { hour: 13, minute: 50 },
+                lunchEnd: { hour: 14, minute: 30 },
+                lunchReturnMin: { hour: 14, minute: 30 },
+                lunchReturnMax: { hour: 15, minute: 30 },
+                requiredMinutes: 510 // 8.5 horas
+            },
+            friday: {
+                minEntry: { hour: 7, minute: 30 },
+                maxEntry: { hour: 8, minute: 30 },
+                minExit: { hour: 13, minute: 50 },
+                maxExit: { hour: 14, minute: 50 },
+                mandatoryStart: { hour: 8, minute: 30 },
+                mandatoryEnd: { hour: 13, minute: 50 },
+                requiredMinutes: 360 // 6 horas
+            }
+        };
+
+        function initApp() {
+            loadTodayData();
+            updateDateTime();
+            updateDisplay();
+            updateButtons();
+            
+            if (currentState === 'in' || currentState === 'lunch_back') {
+                startWorkTimer();
+            }
+            
+            setInterval(updateDateTime, 1000);
+        }
+
+        function loadTodayData() {
+            const today = new Date().toISOString().split('T')[0];
+            const savedData = localStorage.getItem(`workday_${today}`);
+            
+            if (savedData) {
+                todayData = JSON.parse(savedData);
+                
+                // Determinar estado actual basado en las entradas
+                if (todayData.entries.length > 0) {
+                    const lastEntry = todayData.entries[todayData.entries.length - 1];
+                    currentState = lastEntry.type === 'enter' ? 'in' :
+                                 lastEntry.type === 'lunch_out' ? 'lunch_out' :
+                                 lastEntry.type === 'lunch_back' ? 'lunch_back' : 'out';
+                }
+                
+                // Recalcular tiempo trabajado
+                calculateWorkedTime();
+            } else {
+                todayData.date = today;
+            }
+        }
+
+        function saveTodayData() {
+            localStorage.setItem(`workday_${todayData.date}`, JSON.stringify(todayData));
+            
+            // Guardar historial semanal
+            saveWeeklyHistory();
+        }
+
+        function saveWeeklyHistory() {
+            const today = new Date();
+            const weekStart = getMonday(today);
+            const weekKey = `week_${weekStart.toISOString().split('T')[0]}`;
+            
+            let weekData = JSON.parse(localStorage.getItem(weekKey) || '{}');
+            weekData[todayData.date] = todayData;
+            
+            localStorage.setItem(weekKey, JSON.stringify(weekData));
+        }
+
+        function getMonday(date) {
+            const d = new Date(date);
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+            return new Date(d.setDate(diff));
+        }
+
+        function updateDateTime() {
+            const now = new Date();
+            const options = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            };
+            document.getElementById('currentDateTime').textContent = now.toLocaleDateString('es-ES', options);
+        }
+
+        function handleAction(action) {
+            const now = new Date();
+            const isOvertime = isOvertimeAction(action, now);
+            
+            if (isOvertime) {
+                showOvertimeDialog(action);
+            } else {
+                executeAction(action, now);
+            }
+        }
+
+        function isOvertimeAction(action, time) {
+            const today = new Date();
+            const isFriday = today.getDay() === 5;
+            const schedule = isFriday ? SCHEDULE.friday : SCHEDULE.weekday;
+            
+            const hour = time.getHours();
+            const minute = time.getMinutes();
+            const totalMinutes = hour * 60 + minute;
+            
+            switch (action) {
+                case 'enter':
+                    const minEntry = schedule.minEntry.hour * 60 + schedule.minEntry.minute;
+                    const maxEntry = schedule.maxEntry.hour * 60 + schedule.maxEntry.minute;
+                    return totalMinutes < minEntry || totalMinutes > maxEntry;
+                    
+                case 'exit':
+                    if (!isFriday) {
+                        const minExit = schedule.minExit.hour * 60 + schedule.minExit.minute;
+                        const maxExit = schedule.maxExit.hour * 60 + schedule.maxExit.minute;
+                        return totalMinutes < minExit || totalMinutes > maxExit;
+                    } else {
+                        const minExitFri = schedule.minExit.hour * 60 + schedule.minExit.minute;
+                        const maxExitFri = schedule.maxExit.hour * 60 + schedule.maxExit.minute;
+                        return totalMinutes < minExitFri || totalMinutes > maxExitFri;
+                    }
+                    
+                case 'lunch_back':
+                    if (!isFriday) {
+                        const lunchReturnMin = schedule.lunchReturnMin.hour * 60 + schedule.lunchReturnMin.minute;
+                        const lunchReturnMax = schedule.lunchReturnMax.hour * 60 + schedule.lunchReturnMax.minute;
+                        return totalMinutes < lunchReturnMin || totalMinutes > lunchReturnMax;
+                    }
+                    return false;
+                    
+                default:
+                    return false;
+            }
+        }
+
+        function showOvertimeDialog(action) {
+            pendingAction = action;
+            document.getElementById('overtimeSection').classList.add('active');
+        }
+
+        function confirmOvertimeAction() {
+            const reason = document.getElementById('overtimeReason').value;
+            const description = document.getElementById('overtimeDescription').value;
+            
+            if (!reason) {
+                showAlert('Por favor selecciona un motivo', 'warning');
+                return;
+            }
+            
+            const now = new Date();
+            executeAction(pendingAction, now, true, reason, description);
+            
+            document.getElementById('overtimeSection').classList.remove('active');
+            document.getElementById('overtimeReason').value = '';
+            document.getElementById('overtimeDescription').value = '';
+            pendingAction = null;
+        }
+
+        function executeAction(action, time, isOvertime = false, reason = '', description = '') {
+            const entry = {
+                type: action,
+                time: time.toISOString(),
+                hour: time.getHours(),
+                minute: time.getMinutes(),
+                isOvertime: isOvertime,
+                reason: reason,
+                description: description
+            };
+            
+            todayData.entries.push(entry);
+            
+            switch (action) {
+                case 'enter':
+                    currentState = 'in';
+                    startWorkTimer();
+                    showAlert('Entrada registrada', 'success');
+                    break;
+                case 'lunch_out':
+                    currentState = 'lunch_out';
+                    stopWorkTimer();
+                    showAlert('Salida a comer registrada', 'success');
+                    break;
+                case 'lunch_back':
+                    currentState = 'lunch_back';
+                    startWorkTimer();
+                    showAlert('Vuelta de comer registrada', 'success');
+                    break;
+                case 'exit':
+                    currentState = 'out';
+                    stopWorkTimer();
+                    showAlert('Salida registrada', 'success');
+                    break;
+            }
+            
+            calculateWorkedTime();
+            updateDisplay();
+            updateButtons();
+            saveTodayData();
+        }
+
+        function startWorkTimer() {
+            if (workTimer) clearInterval(workTimer);
+            workTimer = setInterval(() => {
+                calculateWorkedTime();
+                updateDisplay();
+            }, 1000);
+        }
+
+        function stopWorkTimer() {
+            if (workTimer) {
+                clearInterval(workTimer);
+                workTimer = null;
+            }
+        }
+
+        function calculateWorkedTime() {
+            let workedMinutes = 0;
+            let currentPeriodStart = null;
+            
+            for (const entry of todayData.entries) {
+                const entryTime = new Date(entry.time);
+                
+                if (entry.type === 'enter' || entry.type === 'lunch_back') {
+                    currentPeriodStart = entryTime;
+                } else if ((entry.type === 'lunch_out' || entry.type === 'exit') && currentPeriodStart) {
+                    workedMinutes += (entryTime - currentPeriodStart) / (1000 * 60);
+                    currentPeriodStart = null;
+                }
+            }
+            
+            // Si está trabajando actualmente
+            if (currentPeriodStart && (currentState === 'in' || currentState === 'lunch_back')) {
+                workedMinutes += (new Date() - currentPeriodStart) / (1000 * 60);
+            }
+            
+            todayData.workedMinutes = Math.floor(workedMinutes);
+        }
+
+        function updateDisplay() {
+            const isFriday = new Date().getDay() === 5;
+            const requiredMinutes = isFriday ? SCHEDULE.friday.requiredMinutes : SCHEDULE.weekday.requiredMinutes;
+            
+            // Estado
+            const statusText = {
+                'out': 'Fuera',
+                'in': 'Trabajando',
+                'lunch_out': 'En Comida',
+                'lunch_back': 'Trabajando'
+            };
+            
+            const statusElement = document.getElementById('workStatus');
+            statusElement.textContent = statusText[currentState];
+            statusElement.className = 'status-value ' + (currentState === 'in' || currentState === 'lunch_back' ? 'working' : '');
+            
+            // Horas trabajadas
+            const workedHours = Math.floor(todayData.workedMinutes / 60);
+            const workedMins = todayData.workedMinutes % 60;
+            document.getElementById('workedHours').textContent = `${workedHours.toString().padStart(2, '0')}:${workedMins.toString().padStart(2, '0')}`;
+            
+            // Horas restantes
+            const remainingMinutes = Math.max(0, requiredMinutes - todayData.workedMinutes);
+            const remainingHours = Math.floor(remainingMinutes / 60);
+            const remainingMins = remainingMinutes % 60;
+            
+            const remainingElement = document.getElementById('remainingHours');
+            if (todayData.workedMinutes >= requiredMinutes) {
+                const overtimeMinutes = todayData.workedMinutes - requiredMinutes;
+                const overtimeHours = Math.floor(overtimeMinutes / 60);
+                const overtimeMins = overtimeMinutes % 60;
+                remainingElement.textContent = `+${overtimeHours.toString().padStart(2, '0')}:${overtimeMins.toString().padStart(2, '0')}`;
+                remainingElement.className = 'status-value overtime';
+            } else {
+                remainingElement.textContent = `${remainingHours.toString().padStart(2, '0')}:${remainingMins.toString().padStart(2, '0')}`;
+                remainingElement.className = 'status-value';
+            }
+            
+            // Hora estimada de salida
+            if (currentState === 'in' || currentState === 'lunch_back') {
+                const now = new Date();
+                const estimatedExit = new Date(now.getTime() + remainingMinutes * 60 * 1000);
+                const exitHour = estimatedExit.getHours().toString().padStart(2, '0');
+                const exitMinute = estimatedExit.getMinutes().toString().padStart(2, '0');
+                document.getElementById('estimatedExit').textContent = `${exitHour}:${exitMinute}`;
+            } else {
+                document.getElementById('estimatedExit').textContent = '--:--';
+            }
+        }
+
+        function updateButtons() {
+            const buttons = {
+                enterBtn: document.getElementById('enterBtn'),
+                lunchOutBtn: document.getElementById('lunchOutBtn'),
+                lunchBackBtn: document.getElementById('lunchBackBtn'),
+                exitBtn: document.getElementById('exitBtn')
+            };
+            
+            // Ocultar todos los botones
+            Object.values(buttons).forEach(btn => btn.style.display = 'none');
+            
+            const isFriday = new Date().getDay() === 5;
+            
+            switch (currentState) {
+                case 'out':
+                    buttons.enterBtn.style.display = 'block';
+                    break;
+                case 'in':
+                    if (!isFriday) {
+                        buttons.lunchOutBtn.style.display = 'block';
+                    }
+                    buttons.exitBtn.style.display = 'block';
+                    break;
+                case 'lunch_out':
+                    buttons.lunchBackBtn.style.display = 'block';
+                    break;
+                case 'lunch_back':
+                    buttons.exitBtn.style.display = 'block';
+                    break;
+            }
+        }
+
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alertContainer');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+            
+            alertContainer.appendChild(alertDiv);
+            
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 3000);
+        }
+
+        function toggleHistory() {
+            const historyContent = document.getElementById('historyContent');
+            const isVisible = historyContent.classList.contains('active');
+            
+            if (isVisible) {
+                historyContent.classList.remove('active');
+            } else {
+                loadWeeklyHistory();
+                historyContent.classList.add('active');
+            }
+        }
+
+        function loadWeeklyHistory() {
+            const today = new Date();
+            const weekStart = getMonday(today);
+            const weekKey = `week_${weekStart.toISOString().split('T')[0]}`;
+            
+            const weekData = JSON.parse(localStorage.getItem(weekKey) || '{}');
+            const historyContent = document.getElementById('historyContent');
+            
+            let html = '<h3>Historial de la Semana</h3>';
+            
+            // Generar días de la semana laboral
+            for (let i = 0; i < 5; i++) {
+                const day = new Date(weekStart);
+                day.setDate(weekStart.getDate() + i);
+                const dayKey = day.toISOString().split('T')[0];
+                const dayData = weekData[dayKey];
+                
+                const dayName = day.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' });
+                
+                html += `<div class="day-record">`;
+                html += `<div class="day-header">${dayName}</div>`;
+                
+                if (dayData && dayData.entries.length > 0) {
+                    const workedHours = Math.floor(dayData.workedMinutes / 60);
+                    const workedMins = dayData.workedMinutes % 60;
+                    
+                    html += `<div class="time-entry"><span>Horas trabajadas:</span><span>${workedHours}:${workedMins.toString().padStart(2, '0')}</span></div>`;
+                    
+                    dayData.entries.forEach(entry => {
+                        const time = new Date(entry.time);
+                        const timeStr = `${entry.hour.toString().padStart(2, '0')}:${entry.minute.toString().padStart(2, '0')}`;
+                        const actionText = {
+                            'enter': 'Entrada',
+                            'lunch_out': 'Salida comida',
+                            'lunch_back': 'Vuelta comida',
+                            'exit': 'Salida'
+                        };
+                        
+                        let entryClass = '';
+                        let entryText = `<span>${actionText[entry.type]}:</span><span>${timeStr}</span>`;
+                        
+                        if (entry.isOvertime) {
+                            entryClass = 'overtime-entry';
+                            entryText += ` <small>(${entry.reason})</small>`;
+                        }
+                        
+                        html += `<div class="time-entry ${entryClass}">${entryText}</div>`;
+                    });
+                } else {
+                    html += `<div class="time-entry"><span>Sin registros</span></div>`;
+                }
+                
+                html += `</div>`;
+            }
+            
+            historyContent.innerHTML = html;
+        }
+
+        // Inicializar aplicación
+        document.addEventListener('DOMContentLoaded', initApp);
+        
+        // Cleanup al cerrar
+        window.addEventListener('beforeunload', () => {
+            if (workTimer) {
+                clearInterval(workTimer);
+            }
+        });
+    </script>
+</body>
+</html>
