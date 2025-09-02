@@ -214,6 +214,18 @@
             display: block;
         }
 
+        .manual-entry-content {
+            display: none;
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 15px;
+        }
+
+        .manual-entry-content.active {
+            display: block;
+        }
+
         .day-record {
             background: white;
             border-radius: 10px;
@@ -329,19 +341,22 @@
             </div>
 
             <div class="manual-entry">
-                <h3>Ingreso manual</h3>
-                <div class="form-group">
-                    <label for="manualType">Tipo:</label>
-                    <select id="manualType">
-                        <option value="enter">Entrada</option>
-                        <option value="lunch_out">Salida comida</option>
-                        <option value="lunch_back">Vuelta comida</option>
-                        <option value="exit">Salida</option>
-                    </select>
-                    <label for="manualTime">Hora:</label>
-                    <input type="time" id="manualTime">
+                <button class="history-toggle" onclick="toggleManualEntry()">Ingreso Manual</button>
+                <div class="manual-entry-content" id="manualEntryContent">
+                    <h3>Ingreso manual</h3>
+                    <div class="form-group">
+                        <label for="manualType">Tipo:</label>
+                        <select id="manualType">
+                            <option value="enter">Entrada</option>
+                            <option value="lunch_out">Salida comida</option>
+                            <option value="lunch_back">Vuelta comida</option>
+                            <option value="exit">Salida</option>
+                        </select>
+                        <label for="manualTime">Hora:</label>
+                        <input type="time" id="manualTime">
+                    </div>
+                    <button class="confirm-btn" onclick="addManualEntry()">Agregar</button>
                 </div>
-                <button class="confirm-btn" onclick="addManualEntry()">Agregar</button>
             </div>
 
             <div class="overtime-section" id="overtimeSection">
@@ -777,6 +792,11 @@
             setTimeout(() => {
                 alertDiv.remove();
             }, 3000);
+        }
+
+        function toggleManualEntry() {
+            const manualEntryContent = document.getElementById('manualEntryContent');
+            manualEntryContent.classList.toggle('active');
         }
 
         function toggleHistory() {
