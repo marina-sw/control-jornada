@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control de Jornada Flexible</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -396,6 +397,7 @@
 
             <div class="history-section">
                 <button class="history-toggle" onclick="toggleHistory()">Ver Historial Semanal</button>
+                <button class="history-toggle" onclick="exportWeekToExcel()">Exportar a Excel</button>
                 <div class="history-content" id="historyContent"></div>
             </div>
         </div>
@@ -519,28 +521,48 @@
         }
 
         function addManualEntry() {
-            const typeSelect = document.getElementById('manualType');
-            const type = typeSelect.value;
-            const selectedTypeText = typeSelect.options[typeSelect.selectedIndex].text;
+            const type = document.getElementById('manualType').value;
             const timeStr = document.getElementById('manualTime').value;
-
             if (!timeStr) {
                 showAlert('Introduce una hora válida', 'warning');
                 return;
             }
 
-            const existingEntry = todayData.entries.find(entry => entry.type === type);
-            if (existingEntry) {
-                showAlert(`Ya existe un registro de "${selectedTypeText}" para hoy.`, 'warning');
-                return;
-            }
-
             const [hours, minutes] = timeStr.split(':').map(Number);
-            const date = new Date();
-            date.setHours(hours, minutes, 0, 0);
+            const newEntryDate = new Date();
+            newEntryDate.setHours(hours, minutes, 0, 0);
 
-            executeAction(type, date);
-            showAlert('Entrada manual añadida', 'success');
+            const tempEntries = JSON.parse(JSON.stringify(todayData.entries));
+
+            const existingEntryIndex = tempEntries.findIndex(entry => entry.type === type);
+            if (existingEntryIndex > -1) {
+                tempEntries.splice(existingEntryIndex, 1);
+            }
+            
+            const newEntry = {
+                type: type,
+                time: newEntryDate.toISOString()
+            };
+            tempEntries.push(newEntry);
+            
+            tempEntries.sort((a, b) => new Date(a.time) - new Date(b.time));
+
+            const typeOrder = { 'enter': 1, 'lunch_out': 2, 'lunch_back': 3, 'exit': 4 };
+            let lastTypeOrder = 0;
+            for (const currentEntry of tempEntries) {
+                const currentTypeOrder = typeOrder[currentEntry.type];
+                if (currentTypeOrder < lastTypeOrder) {
+                    showAlert('El orden cronológico de los registros es incorrecto. Por favor, ajuste la hora.', 'warning');
+                    return;
+                }
+                lastTypeOrder = currentTypeOrder;
+            }
+            
+            const realExistingEntryIndex = todayData.entries.findIndex(entry => entry.type === type);
+            if (realExistingEntryIndex > -1) {
+                todayData.entries.splice(realExistingEntryIndex, 1);
+            }
+            executeAction(type, newEntryDate);
         }
 
         function handleAction(action) {
@@ -674,6 +696,7 @@
         }
 
         function calculateWorkedTime() {
+            todayData.entries.sort((a, b) => new Date(a.time) - new Date(b.time));
             let workedMinutes = 0;
             let currentPeriodStart = null;
             let hadEntry = false;
@@ -707,7 +730,6 @@
             const isFriday = new Date().getDay() === 5;
             const requiredMinutes = isFriday ? SCHEDULE.friday.requiredMinutes : SCHEDULE.weekday.requiredMinutes;
             
-            // Estado
             const statusText = {
                 'out': 'Fuera',
                 'in': 'Trabajando',
@@ -719,12 +741,10 @@
             statusElement.textContent = statusText[currentState];
             statusElement.className = 'status-value ' + (currentState === 'in' || currentState === 'lunch_back' ? 'working' : '');
             
-            // Horas trabajadas
             const workedHours = Math.floor(todayData.workedMinutes / 60);
             const workedMins = todayData.workedMinutes % 60;
             document.getElementById('workedHours').textContent = `${workedHours.toString().padStart(2, '0')}:${workedMins.toString().padStart(2, '0')}`;
             
-            // Horas restantes
             const remainingMinutes = Math.max(0, requiredMinutes - todayData.workedMinutes);
             const remainingHours = Math.floor(remainingMinutes / 60);
             const remainingMins = remainingMinutes % 60;
@@ -776,7 +796,6 @@
                 exitBtn: document.getElementById('exitBtn')
             };
             
-            // Ocultar todos los botones
             Object.values(buttons).forEach(btn => btn.style.display = 'none');
             
             const isFriday = new Date().getDay() === 5;
@@ -887,6 +906,67 @@
             }
             
             historyContent.innerHTML = html;
+        }
+
+        function exportWeekToExcel() {
+            const today = new Date();
+            const weekStart = getMonday(today);
+            const weekKey = `week_${weekStart.toISOString().split('T')[0]}`;
+            
+            const weekData = JSON.parse(localStorage.getItem(weekKey) || '{}');
+
+            if (Object.keys(weekData).length === 0) {
+                showAlert('No hay datos para exportar en la semana actual.', 'warning');
+                return;
+            }
+
+            const rows = [['Fecha', 'Hora', 'Tipo', 'Motivo', 'Descripción', 'Horas Totales']];
+            const actionText = {
+                'enter': 'Entrada',
+                'lunch_out': 'Salida comida',
+                'lunch_back': 'Vuelta comida',
+                'exit': 'Salida'
+            };
+
+            const sortedDays = Object.keys(weekData).sort((a, b) => new Date(a) - new Date(b));
+
+            for (const dayKey of sortedDays) {
+                const dayData = weekData[dayKey];
+                const dayName = new Date(dayKey).toLocaleDateString('es-ES', { weekday: 'long' });
+                const workedHours = Math.floor(dayData.workedMinutes / 60);
+                const workedMins = dayData.workedMinutes % 60;
+                const workedTimeStr = `${workedHours.toString().padStart(2, '0')}:${workedMins.toString().padStart(2, '0')}`;
+
+                if (dayData.entries.length > 0) {
+                    dayData.entries.forEach((entry, index) => {
+                        const timeStr = `${entry.hour.toString().padStart(2, '0')}:${entry.minute.toString().padStart(2, '0')}`;
+                        const reasonText = entry.isOvertime ? (OVERTIME_REASONS[entry.reason] || entry.reason) : '';
+                        
+                        rows.push([
+                            dayKey,
+                            timeStr,
+                            actionText[entry.type],
+                            reasonText,
+                            entry.description,
+                            index === dayData.entries.length - 1 ? workedTimeStr : '' // Add worked time only for the last entry of the day
+                        ]);
+                    });
+                } else {
+                    rows.push([dayKey, '', 'Sin registros', '', '', '00:00']);
+                }
+                rows.push([]);
+            }
+
+            const worksheet = XLSX.utils.aoa_to_sheet(rows);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Jornada Semanal');
+            
+            const colWidths = rows[0].map((_, i) => ({
+                wch: Math.max(...rows.map(row => (row[i] || '').toString().length)) + 2
+            }));
+            worksheet['!cols'] = colWidths;
+
+            XLSX.writeFile(workbook, `jornada_semanal_${weekStart.toISOString().split('T')[0]}.xlsx`);
         }
 
         // Inicializar aplicación
