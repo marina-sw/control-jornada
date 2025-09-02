@@ -13,7 +13,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(180deg, #e4e4e4 0%, #c0c0c0 100%);
             min-height: 100vh;
             padding: 20px;
             color: #333;
@@ -30,7 +30,9 @@
         }
 
         .header {
-            background: linear-gradient(135deg, #4a90e2, #357abd);
+            background: #a0d168;
+            border-radius: 15px;
+            margin: 15px;
             color: white;
             padding: 30px;
             text-align: center;
@@ -42,20 +44,31 @@
         }
 
         .date-time {
-            font-size: 1.1rem;
-            opacity: 0.9;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        #currentDate {
+            font-size: 1rem;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        #currentTime {
+            font-size: 3rem;
+            font-weight: bolder;
         }
 
         .main-content {
             padding: 30px;
         }
-
+ 
         .status-card {
             background: #f8f9fa;
             border-radius: 15px;
             padding: 25px;
             margin-bottom: 25px;
-            border-left: 5px solid #4a90e2;
+            border: 5px solid #a0d168;
         }
 
         .status-grid {
@@ -225,6 +238,7 @@
         .overtime-entry {
             color: #dc3545;
             font-style: italic;
+            font-weight: bold;
         }
 
         .alert {
@@ -267,7 +281,12 @@
     <div class="container">
         <div class="header">
             <h1>Control de Jornada Flexible</h1>
-            <div class="date-time" id="currentDateTime"></div>
+            
+        </div>
+
+        <div class="date-time">
+            <div id="currentDate"></div>
+            <div id="currentTime"></div>
         </div>
 
         <div class="main-content">
@@ -307,6 +326,22 @@
                 <button class="action-button btn-exit" id="exitBtn" onclick="handleAction('exit')" style="display: none;">
                     Salida
                 </button>
+            </div>
+
+            <div class="manual-entry">
+                <h3>Ingreso manual</h3>
+                <div class="form-group">
+                    <label for="manualType">Tipo:</label>
+                    <select id="manualType">
+                        <option value="enter">Entrada</option>
+                        <option value="lunch_out">Salida comida</option>
+                        <option value="lunch_back">Vuelta comida</option>
+                        <option value="exit">Salida</option>
+                    </select>
+                    <label for="manualTime">Hora:</label>
+                    <input type="time" id="manualTime">
+                </div>
+                <button class="confirm-btn" onclick="addManualEntry()">Agregar</button>
             </div>
 
             <div class="overtime-section" id="overtimeSection">
@@ -378,6 +413,16 @@
             }
         };
 
+        // Motivos de horario extraordinario
+        const OVERTIME_REASONS = {
+            reunion_urgente: "Reunión urgente",
+            proyecto_critico: "Proyecto crítico",
+            problema_tecnico: "Problema técnico",
+            cliente_importante: "Atención cliente importante",
+            formacion: "Formación",
+            otro: "Otro"
+        };
+
         function initApp() {
             loadTodayData();
             updateDateTime();
@@ -440,16 +485,28 @@
 
         function updateDateTime() {
             const now = new Date();
-            const options = { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
-            };
-            document.getElementById('currentDateTime').textContent = now.toLocaleDateString('es-ES', options);
+
+            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('currentDate').textContent = now.toLocaleDateString('es-ES', dateOptions);
+
+            const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit' };
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString('es-ES', timeOptions);
+        }
+
+        function addManualEntry() {
+            const type = document.getElementById('manualType').value;
+            const timeStr = document.getElementById('manualTime').value;
+            if (!timeStr) {
+                showAlert('Introduce una hora válida', 'warning');
+                return;
+            }
+
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            const date = new Date();
+            date.setHours(hours, minutes, 0, 0);
+
+            executeAction(type, date);
+            showAlert('Entrada manual añadida', 'success');
         }
 
         function handleAction(action) {
@@ -585,23 +642,30 @@
         function calculateWorkedTime() {
             let workedMinutes = 0;
             let currentPeriodStart = null;
-            
+            let hadEntry = false;
+
             for (const entry of todayData.entries) {
                 const entryTime = new Date(entry.time);
-                
+
                 if (entry.type === 'enter' || entry.type === 'lunch_back') {
                     currentPeriodStart = entryTime;
+                    if (entry.type === 'enter') {
+                        hadEntry = true;
+                    }
                 } else if ((entry.type === 'lunch_out' || entry.type === 'exit') && currentPeriodStart) {
                     workedMinutes += (entryTime - currentPeriodStart) / (1000 * 60);
                     currentPeriodStart = null;
                 }
             }
-            
-            // Si está trabajando actualmente
+
             if (currentPeriodStart && (currentState === 'in' || currentState === 'lunch_back')) {
                 workedMinutes += (new Date() - currentPeriodStart) / (1000 * 60);
             }
-            
+
+            if (hadEntry) {
+                workedMinutes = Math.max(0, workedMinutes - 20);
+            }
+
             todayData.workedMinutes = Math.floor(workedMinutes);
         }
 
@@ -643,15 +707,30 @@
                 remainingElement.className = 'status-value';
             }
             
-            // Hora estimada de salida
-            if (currentState === 'in' || currentState === 'lunch_back') {
+            const exitElement = document.getElementById('estimatedExit');
+
+            if (currentState === 'in') {
+                exitElement.textContent = '--:--';
+            } else if (currentState === 'lunch_out') {
+                const lunchOutEntry = todayData.entries.find(e => e.type === 'lunch_out');
+                if (lunchOutEntry) {
+                    const lunchOutTime = new Date(lunchOutEntry.time);
+                    const minReturn = new Date(lunchOutTime.getTime() + 40 * 60000 + remainingMinutes * 60000);
+                    const maxReturn = new Date(lunchOutTime.getTime() + 100 * 60000 + remainingMinutes * 60000);
+
+                    const format = d => `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+                    exitElement.textContent = `${format(minReturn)} - ${format(maxReturn)}`;
+                } else {
+                    exitElement.textContent = '--:--';
+                }
+            } else if (currentState === 'lunch_back') {
                 const now = new Date();
-                const estimatedExit = new Date(now.getTime() + remainingMinutes * 60 * 1000);
+                const estimatedExit = new Date(now.getTime() + remainingMinutes * 60000);
                 const exitHour = estimatedExit.getHours().toString().padStart(2, '0');
                 const exitMinute = estimatedExit.getMinutes().toString().padStart(2, '0');
-                document.getElementById('estimatedExit').textContent = `${exitHour}:${exitMinute}`;
+                exitElement.textContent = `${exitHour}:${exitMinute}`;
             } else {
-                document.getElementById('estimatedExit').textContent = '--:--';
+                exitElement.textContent = '--:--';
             }
         }
 
@@ -755,7 +834,8 @@
                         
                         if (entry.isOvertime) {
                             entryClass = 'overtime-entry';
-                            entryText += ` <small>(${entry.reason})</small>`;
+                            const reasonText = OVERTIME_REASONS[entry.reason] || entry.reason;
+                            entryText += ` <small>(${reasonText})</small>`;
                         }
                         
                         html += `<div class="time-entry ${entryClass}">${entryText}</div>`;
