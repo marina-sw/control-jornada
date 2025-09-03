@@ -864,7 +864,15 @@
             const exitElement = document.getElementById('estimatedExit');
 
             if (currentState === 'in') {
-                exitElement.textContent = '--:--';
+                if (isFriday) {
+                    const now = new Date();
+                    const estimatedExit = new Date(now.getTime() + remainingMinutes * 60000 + (20 * 60000));
+                    const exitHour = estimatedExit.getHours().toString().padStart(2, '0');
+                    const exitMinute = estimatedExit.getMinutes().toString().padStart(2, '0');
+                    exitElement.textContent = `${exitHour}:${exitMinute}`;
+                } else {
+                    exitElement.textContent = '--:--';
+                }
             } else if (currentState === 'lunch_out') {
                 const lunchOutEntry = todayData.entries.find(e => e.type === 'lunch_out');
                 if (lunchOutEntry) {
@@ -958,7 +966,8 @@
             const weekData = JSON.parse(localStorage.getItem(weekKey) || '{}');
             const historyContent = document.getElementById('historyContent');
             
-            let html = '<h3>Historial de la Semana</h3>';
+            let totalWeekMinutes = 0;
+            let dailyHtml = '';
             
             const todayStr = new Date().toISOString().split('T')[0];
 
@@ -968,23 +977,27 @@
                 const dayKey = day.toISOString().split('T')[0];
                 const dayData = weekData[dayKey];
                 
+                if (dayData && dayData.workedMinutes) {
+                    totalWeekMinutes += dayData.workedMinutes;
+                }
+
                 const dayName = day.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' });
                 
-                html += `<div class="day-record">`;
-                html += `<div class="day-header">
+                dailyHtml += `<div class="day-record">`;
+                dailyHtml += `<div class="day-header">
                             <span>${dayName}</span>`;
 
                 if (dayKey <= todayStr) {
-                    html += `<button class="add-btn" style="padding: 5px 10px;" onclick="openEditModal('${dayKey}')">Editar</button>`;
+                    dailyHtml += `<button class="add-btn" style="padding: 5px 10px;" onclick="openEditModal('${dayKey}')">Editar</button>`;
                 }
                 
-                html += `</div>`;
+                dailyHtml += `</div>`;
                 
                 if (dayData && dayData.entries.length > 0) {
                     const workedHours = Math.floor(dayData.workedMinutes / 60);
                     const workedMins = dayData.workedMinutes % 60;
                     
-                    html += `<div class="time-entry"><span>Horas trabajadas:</span><span>${workedHours.toString().padStart(2, '0')}:${workedMins.toString().padStart(2, '0')}</span></div>`;
+                    dailyHtml += `<div class="time-entry"><span>Horas trabajadas:</span><span>${workedHours.toString().padStart(2, '0')}:${workedMins.toString().padStart(2, '0')}</span></div>`;
                     
                     dayData.entries.forEach(entry => {
                         const timeStr = `${entry.hour.toString().padStart(2, '0')}:${entry.minute.toString().padStart(2, '0')}`;
@@ -998,16 +1011,21 @@
                             entryText += ` <small>(${reasonText})</small>`;
                         }
                         
-                        html += `<div class="time-entry ${entryClass}">${entryText}</div>`;
+                        dailyHtml += `<div class="time-entry ${entryClass}">${entryText}</div>`;
                     });
                 } else {
-                    html += `<div class="time-entry"><span>Sin registros</span></div>`;
+                    dailyHtml += `<div class="time-entry"><span>Sin registros</span></div>`;
                 }
                 
-                html += `</div>`;
+                dailyHtml += `</div>`;
             }
             
-            historyContent.innerHTML = html;
+            const totalHours = Math.floor(totalWeekMinutes / 60);
+            const totalMinutes = totalWeekMinutes % 60;
+            
+            const headerHtml = `<h3>Historial de la Semana ( ${totalHours.toString().padStart(2, '0')}:${totalMinutes.toString().padStart(2, '0')} hrs realizadas )</h3>`;
+            
+            historyContent.innerHTML = headerHtml + dailyHtml;
         }
 
         function openEditModal(dayKey) {
@@ -1160,7 +1178,6 @@
             loadWeeklyHistory();
         }
         
-        // --- INICIO DE CAMBIO: Lógica de `recalculateWorkedTimeForDay` actualizada para el viernes ---
         function recalculateWorkedTimeForDay(dayData) {
             dayData.entries.sort((a, b) => new Date(a.time) - new Date(b.time));
             let workedMinutes = 0;
@@ -1192,7 +1209,6 @@
             dayData.workedMinutes = Math.floor(workedMinutes);
             return dayData;
         }
-        // --- FIN DE CAMBIO ---
 
         function exportWeekToExcel() {
             const today = new Date();
