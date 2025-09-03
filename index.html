@@ -409,7 +409,8 @@
             date: new Date().toISOString().split('T')[0],
             entries: [],
             workedMinutes: 0,
-            lunchMinutes: 0
+            lunchMinutes: 0,
+            hadLunchOut: false // Nuevo flag para saber si ha salido a comer
         };
         let pendingAction = null;
         let workTimer = null;
@@ -470,12 +471,15 @@
             if (savedData) {
                 todayData = JSON.parse(savedData);
                 
+                // Verificar si tuvo salida a comer
+                todayData.hadLunchOut = todayData.entries.some(e => e.type === 'lunch_out');
+                
                 // Determinar estado actual basado en las entradas
                 if (todayData.entries.length > 0) {
                     const lastEntry = todayData.entries[todayData.entries.length - 1];
                     currentState = lastEntry.type === 'enter' ? 'in' :
-                                 lastEntry.type === 'lunch_out' ? 'lunch_out' :
-                                 lastEntry.type === 'lunch_back' ? 'lunch_back' : 'out';
+                                lastEntry.type === 'lunch_out' ? 'lunch_out' :
+                                lastEntry.type === 'lunch_back' ? 'lunch_back' : 'out';
                 }
                 
                 // Recalcular tiempo trabajado
@@ -659,6 +663,7 @@
                     break;
                 case 'lunch_out':
                     currentState = 'lunch_out';
+                    todayData.hadLunchOut = true;
                     stopWorkTimer();
                     showAlert('Salida a comer registrada', 'success');
                     break;
@@ -719,7 +724,8 @@
                 workedMinutes += (new Date() - currentPeriodStart) / (1000 * 60);
             }
 
-            if (hadEntry) {
+            // Restar 20 minutos de desayuno SOLO cuando se ha marcado la salida a comer
+            if (hadEntry && todayData.hadLunchOut) {
                 workedMinutes = Math.max(0, workedMinutes - 20);
             }
 
