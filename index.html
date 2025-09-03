@@ -505,9 +505,7 @@
             lunchMinutes: 0,
             hadLunchOut: false
         };
-        // --- INICIO DE CAMBIO: `pendingAction` ahora es un objeto ---
-        let pendingAction = null; // Almacenará { type, time }
-        // --- FIN DE CAMBIO ---
+        let pendingAction = null;
         let workTimer = null;
 
         const SCHEDULE = {
@@ -631,7 +629,6 @@
             document.getElementById('currentTime').textContent = now.toLocaleTimeString('es-ES', timeOptions);
         }
         
-        // --- INICIO DE CAMBIO: Lógica de `addManualEntry` actualizada ---
         function addManualEntry() {
             const type = document.getElementById('manualType').value;
             const timeStr = document.getElementById('manualTime').value;
@@ -644,7 +641,6 @@
             const entryDate = new Date();
             entryDate.setHours(hours, minutes, 0, 0);
 
-            // Validar orden cronológico antes de proceder
             const tempEntries = [...todayData.entries, { type, time: entryDate.toISOString() }];
             tempEntries.sort((a, b) => new Date(a.time) - new Date(b.time));
 
@@ -659,7 +655,6 @@
                 lastTypeOrder = currentTypeOrder;
             }
 
-            // Comprobar si es fuera de hora
             const isOvertime = isOvertimeAction(type, entryDate);
             
             if (isOvertime) {
@@ -669,17 +664,14 @@
                 executeAction(type, entryDate);
             }
         }
-        // --- FIN DE CAMBIO ---
 
         function handleAction(action) {
             const now = new Date();
             const isOvertime = isOvertimeAction(action, now);
             
             if (isOvertime) {
-                // --- INICIO DE CAMBIO: Guardar objeto en pendingAction ---
                 pendingAction = { type: action, time: now };
                 showOvertimeDialog();
-                // --- FIN DE CAMBIO ---
             } else {
                 executeAction(action, now);
             }
@@ -722,7 +714,6 @@
             document.getElementById('overtimeSection').classList.add('active');
         }
 
-        // --- INICIO DE CAMBIO: `confirmOvertimeAction` simplificada ---
         function confirmOvertimeAction() {
             const reason = document.getElementById('overtimeReason').value;
             const description = document.getElementById('overtimeDescription').value;
@@ -732,7 +723,6 @@
                 return;
             }
             
-            // La acción pendiente (sea manual o de botón) ya tiene el tipo y la hora correctos
             executeAction(pendingAction.type, pendingAction.time, true, reason, description);
             
             document.getElementById('overtimeSection').classList.remove('active');
@@ -740,11 +730,8 @@
             document.getElementById('overtimeDescription').value = '';
             pendingAction = null;
         }
-        // --- FIN DE CAMBIO ---
         
-        // --- INICIO DE CAMBIO: `executeAction` ahora centraliza la lógica de añadir registros ---
         function executeAction(action, time, isOvertime = false, reason = '', description = '') {
-            // Eliminar registro previo del mismo tipo si existe (para el ingreso manual)
             const existingEntryIndex = todayData.entries.findIndex(entry => entry.type === action);
             if (existingEntryIndex > -1) {
                 todayData.entries.splice(existingEntryIndex, 1);
@@ -761,11 +748,10 @@
             };
             
             todayData.entries.push(entry);
-            todayData.entries.sort((a, b) => new Date(a.time) - new Date(b.time)); // Reordenar siempre
+            todayData.entries.sort((a, b) => new Date(a.time) - new Date(b.time));
 
             const lastEntry = todayData.entries[todayData.entries.length - 1];
             
-            // Actualizar el estado de la aplicación
             switch (lastEntry.type) {
                 case 'enter':
                 case 'lunch_back':
@@ -790,7 +776,6 @@
             updateButtons();
             saveTodayData();
         }
-        // --- FIN DE CAMBIO ---
 
         function startWorkTimer() {
             if (workTimer) clearInterval(workTimer);
@@ -872,12 +857,9 @@
             
             const exitElement = document.getElementById('estimatedExit');
 
-            if (currentState === 'in' || currentState === 'lunch_back') {
-                 const now = new Date();
-                const estimatedExit = new Date(now.getTime() + remainingMinutes * 60000);
-                const exitHour = estimatedExit.getHours().toString().padStart(2, '0');
-                const exitMinute = estimatedExit.getMinutes().toString().padStart(2, '0');
-                exitElement.textContent = `${exitHour}:${exitMinute}`;
+            // --- INICIO DE CAMBIO: Lógica de estimación de salida actualizada ---
+            if (currentState === 'in') {
+                exitElement.textContent = '--:--';
             } else if (currentState === 'lunch_out') {
                 const lunchOutEntry = todayData.entries.find(e => e.type === 'lunch_out');
                 if (lunchOutEntry) {
@@ -890,9 +872,16 @@
                 } else {
                     exitElement.textContent = '--:--';
                 }
+            } else if (currentState === 'lunch_back') {
+                const now = new Date();
+                const estimatedExit = new Date(now.getTime() + remainingMinutes * 60000);
+                const exitHour = estimatedExit.getHours().toString().padStart(2, '0');
+                const exitMinute = estimatedExit.getMinutes().toString().padStart(2, '0');
+                exitElement.textContent = `${exitHour}:${exitMinute}`;
             } else {
                 exitElement.textContent = '--:--';
             }
+            // --- FIN DE CAMBIO ---
         }
 
         function updateButtons() {
@@ -912,6 +901,7 @@
             const isFriday = new Date().getDay() === 5;
             
             if (hasExit) {
+                // Jornada finalizada, no mostrar botones
             } else if (hasLunchBack) {
                 buttons.exitBtn.style.display = 'block';
             } else if (hasLunchOut) {
@@ -990,7 +980,7 @@
                     const workedHours = Math.floor(dayData.workedMinutes / 60);
                     const workedMins = dayData.workedMinutes % 60;
                     
-                    html += `<div class="time-entry"><span>Horas trabajadas:</span><span>${workedHours}:${workedMins.toString().padStart(2, '0')}</span></div>`;
+                    html += `<div class="time-entry"><span>Horas trabajadas:</span><span>${workedHours.toString().padStart(2, '0')}:${workedMins.toString().padStart(2, '0')}</span></div>`;
                     
                     dayData.entries.forEach(entry => {
                         const timeStr = `${entry.hour.toString().padStart(2, '0')}:${entry.minute.toString().padStart(2, '0')}`;
@@ -1062,6 +1052,7 @@
             } else {
                 addNewSection.style.display = 'block';
             }
+
             modal.style.display = "block";
         }
 
@@ -1069,7 +1060,8 @@
             const modal = document.getElementById('editDayModal');
             modal.style.display = "none";
         }
-
+        
+        // --- INICIO DE CAMBIO: `addNewEntryToModal` corregida para evitar errores ---
         function addNewEntryToModal() {
             const type = document.getElementById('newEntryType').value;
             const time = document.getElementById('newEntryTime').value;
@@ -1083,18 +1075,36 @@
             const noRecordsP = container.querySelector('p');
             if (noRecordsP) noRecordsP.remove();
             
-            const html = `
-                <div class="edit-entry" data-index="new">
-                    <label>${ACTION_TEXT[type]}:</label>
-                    <input type="time" value="${time}">
-                    <button class="delete-btn" onclick="this.parentElement.remove()">Eliminar</button>
-                    <input type="hidden" value="${type}">
-                </div>
-            `;
-            container.innerHTML += html;
+            const newEntryDiv = document.createElement('div');
+            newEntryDiv.className = 'edit-entry';
+            newEntryDiv.dataset.index = 'new';
+
+            const label = document.createElement('label');
+            label.textContent = `${ACTION_TEXT[type]}:`;
+
+            const timeInput = document.createElement('input');
+            timeInput.type = 'time';
+            timeInput.value = time;
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.textContent = 'Eliminar';
+            deleteBtn.onclick = () => newEntryDiv.remove();
+
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.value = type;
+
+            newEntryDiv.appendChild(label);
+            newEntryDiv.appendChild(timeInput);
+            newEntryDiv.appendChild(deleteBtn);
+            newEntryDiv.appendChild(hiddenInput);
+
+            container.appendChild(newEntryDiv);
             
             document.getElementById('newEntryTime').value = '';
         }
+        // --- FIN DE CAMBIO ---
 
         function saveDayChanges() {
             const modal = document.getElementById('editDayModal');
