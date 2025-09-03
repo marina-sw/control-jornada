@@ -1023,7 +1023,7 @@
             const totalHours = Math.floor(totalWeekMinutes / 60);
             const totalMinutes = totalWeekMinutes % 60;
             
-            const headerHtml = `<h3>Historial de la Semana ( ${totalHours.toString().padStart(2, '0')}:${totalMinutes.toString().padStart(2, '0')} hrs realizadas )</h3>`;
+            const headerHtml = `<h3>Historial de la Semana (Total: ${totalHours.toString().padStart(2, '0')}:${totalMinutes.toString().padStart(2, '0')})</h3>`;
             
             historyContent.innerHTML = headerHtml + dailyHtml;
         }
@@ -1222,42 +1222,70 @@
                 return;
             }
 
-            const rows = [['Fecha', 'Hora', 'Tipo', 'Motivo', 'Descripción', 'Horas Totales']];
-            
-            const sortedDays = Object.keys(weekData).sort((a, b) => new Date(a) - new Date(b));
+            const headers = ['Fecha', 'Entrada', 'Salida Comer', 'Entrada Comer', 'Salida', 'Total', 'Diferencia', 'Total Semana'];
+            const rows = [headers];
+            let totalWeekMinutes = 0;
 
-            for (const dayKey of sortedDays) {
+            for (let i = 0; i < 5; i++) {
+                const day = new Date(weekStart);
+                day.setDate(weekStart.getDate() + i);
+                const dayKey = day.toISOString().split('T')[0];
                 const dayData = weekData[dayKey];
-                const workedHours = Math.floor(dayData.workedMinutes / 60);
-                const workedMins = dayData.workedMinutes % 60;
-                const workedTimeStr = `${workedHours.toString().padStart(2, '0')}:${workedMins.toString().padStart(2, '0')}`;
+                const isFriday = i === 4;
 
-                if (dayData.entries.length > 0) {
-                    dayData.entries.forEach((entry, index) => {
+                const rowData = {
+                    'Fecha': dayKey,
+                    'Entrada': '',
+                    'Salida Comer': '',
+                    'Entrada Comer': '',
+                    'Salida': '',
+                    'Total': '',
+                    'Diferencia': '',
+                    'Total Semana': ''
+                };
+                
+                if (dayData && dayData.entries.length > 0) {
+                    dayData.entries.forEach(entry => {
                         const timeStr = `${entry.hour.toString().padStart(2, '0')}:${entry.minute.toString().padStart(2, '0')}`;
-                        const reasonText = entry.isOvertime ? (OVERTIME_REASONS[entry.reason] || entry.reason) : '';
+                        const reasonText = entry.isOvertime ? ` (${OVERTIME_REASONS[entry.reason] || entry.reason})` : '';
                         
-                        rows.push([
-                            dayKey,
-                            timeStr,
-                            ACTION_TEXT[entry.type],
-                            reasonText,
-                            entry.description,
-                            index === dayData.entries.length - 1 ? workedTimeStr : ''
-                        ]);
+                        switch (entry.type) {
+                            case 'enter':      rowData['Entrada'] = timeStr + reasonText; break;
+                            case 'lunch_out':  rowData['Salida Comer'] = timeStr + reasonText; break;
+                            case 'lunch_back': rowData['Entrada Comer'] = timeStr + reasonText; break;
+                            case 'exit':       rowData['Salida'] = timeStr + reasonText; break;
+                        }
                     });
-                } else {
-                    rows.push([dayKey, '', 'Sin registros', '', '', '00:00']);
+
+                    const workedHours = Math.floor(dayData.workedMinutes / 60);
+                    const workedMins = dayData.workedMinutes % 60;
+                    rowData['Total'] = `${workedHours.toString().padStart(2, '0')}:${workedMins.toString().padStart(2, '0')}`;
+                    totalWeekMinutes += dayData.workedMinutes;
+
+                    const requiredMinutes = isFriday ? SCHEDULE.friday.requiredMinutes : SCHEDULE.weekday.requiredMinutes;
+                    const diffMinutes = dayData.workedMinutes - requiredMinutes;
+                    const sign = diffMinutes >= 0 ? '+' : '-';
+                    const absDiff = Math.abs(diffMinutes);
+                    const diffHours = Math.floor(absDiff / 60);
+                    const diffMins = absDiff % 60;
+                    rowData['Diferencia'] = `${sign}${diffHours.toString().padStart(2, '0')}:${diffMins.toString().padStart(2, '0')}`;
                 }
-                rows.push([]);
+                
+                if (isFriday) {
+                    const totalHours = Math.floor(totalWeekMinutes / 60);
+                    const totalMins = totalWeekMinutes % 60;
+                    rowData['Total Semana'] = `${totalHours.toString().padStart(2, '0')}:${totalMins.toString().padStart(2, '0')}`;
+                }
+
+                rows.push(Object.values(rowData));
             }
 
             const worksheet = XLSX.utils.aoa_to_sheet(rows);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, 'Jornada Semanal');
             
-            const colWidths = rows[0].map((_, i) => ({
-                wch: Math.max(...rows.map(row => (row[i] || '').toString().length)) + 2
+            const colWidths = headers.map((header, i) => ({
+                wch: Math.max(header.length, ...rows.slice(1).map(row => (row[i] || '').toString().length)) + 2
             }));
             worksheet['!cols'] = colWidths;
 
