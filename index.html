@@ -250,6 +250,9 @@
             font-weight: bold;
             color: #4a90e2;
             margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .time-entry {
@@ -283,6 +286,58 @@
             color: #155724;
             border: 1px solid #c3e6cb;
         }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 30px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 15px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .close-btn {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .edit-entry {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
 
         @media (max-width: 768px) {
             .container {
@@ -297,6 +352,11 @@
 
             .header h1 {
                 font-size: 1.5rem;
+            }
+            
+            .modal-content {
+                width: 95%;
+                margin: 20% auto;
             }
         }
     </style>
@@ -403,19 +463,50 @@
         </div>
     </div>
 
+    <div id="editDayModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="editDayModalTitle">Editar Jornada</h2>
+                <span class="close-btn" onclick="closeEditModal()">&times;</span>
+            </div>
+            
+            <div id="existingEntriesContainer"></div>
+            
+            <div id="addNewEntrySection">
+                <hr style="margin: 20px 0;">
+                
+                <h3>Añadir Nuevo Registro</h3>
+                <div class="form-group">
+                    <label for="newEntryType">Tipo:</label>
+                    <select id="newEntryType">
+                        <option value="enter">Entrada</option>
+                        <option value="lunch_out">Salida comida</option>
+                        <option value="lunch_back">Vuelta comida</option>
+                        <option value="exit">Salida</option>
+                    </select>
+                    <label for="newEntryTime">Hora:</label>
+                    <input type="time" id="newEntryTime">
+                </div>
+                <button class="add-btn" onclick="addNewEntryToModal()">Añadir</button>
+            </div>
+            <hr style="margin: 20px 0;">
+
+            <button class="confirm-btn" onclick="saveDayChanges()">Guardar Cambios</button>
+        </div>
+    </div>
+
     <script>
-        let currentState = 'out'; // out, in, lunch_out, lunch_back
+        let currentState = 'out';
         let todayData = {
             date: new Date().toISOString().split('T')[0],
             entries: [],
             workedMinutes: 0,
             lunchMinutes: 0,
-            hadLunchOut: false // Nuevo flag para saber si ha salido a comer
+            hadLunchOut: false
         };
         let pendingAction = null;
         let workTimer = null;
 
-        // Horarios de trabajo
         const SCHEDULE = {
             weekday: {
                 minEntry: { hour: 7, minute: 0 },
@@ -428,7 +519,7 @@
                 lunchEnd: { hour: 14, minute: 30 },
                 lunchReturnMin: { hour: 14, minute: 30 },
                 lunchReturnMax: { hour: 15, minute: 30 },
-                requiredMinutes: 510 // 8.5 horas
+                requiredMinutes: 510
             },
             friday: {
                 minEntry: { hour: 7, minute: 30 },
@@ -437,11 +528,10 @@
                 maxExit: { hour: 14, minute: 50 },
                 mandatoryStart: { hour: 8, minute: 30 },
                 mandatoryEnd: { hour: 13, minute: 50 },
-                requiredMinutes: 360 // 6 horas
+                requiredMinutes: 360
             }
         };
 
-        // Motivos de horario extraordinario
         const OVERTIME_REASONS = {
             reunion_urgente: "Reunión urgente",
             proyecto_critico: "Proyecto crítico",
@@ -450,10 +540,16 @@
             formacion: "Formación",
             otro: "Otro"
         };
+        
+        const ACTION_TEXT = {
+            'enter': 'Entrada',
+            'lunch_out': 'Salida comida',
+            'lunch_back': 'Vuelta comida',
+            'exit': 'Salida'
+        };
 
         function initApp() {
             loadTodayData();
-
             const today = new Date().toISOString().split('T')[0];
             if (todayData.date !== today) {
                 todayData = {
@@ -483,11 +579,8 @@
             
             if (savedData) {
                 todayData = JSON.parse(savedData);
-                
-                // Verificar si tuvo salida a comer
                 todayData.hadLunchOut = todayData.entries.some(e => e.type === 'lunch_out');
                 
-                // Determinar estado actual basado en las entradas
                 if (todayData.entries.length > 0) {
                     const lastEntry = todayData.entries[todayData.entries.length - 1];
                     currentState = lastEntry.type === 'enter' ? 'in' :
@@ -495,7 +588,6 @@
                                 lastEntry.type === 'lunch_back' ? 'lunch_back' : 'out';
                 }
                 
-                // Recalcular tiempo trabajado
                 calculateWorkedTime();
             } else {
                 todayData.date = today;
@@ -504,14 +596,12 @@
 
         function saveTodayData() {
             localStorage.setItem(`workday_${todayData.date}`, JSON.stringify(todayData));
-            
-            // Guardar historial semanal
             saveWeeklyHistory();
         }
 
         function saveWeeklyHistory() {
-            const today = new Date();
-            const weekStart = getMonday(today);
+            const dateToSave = new Date(todayData.date);
+            const weekStart = getMonday(dateToSave);
             const weekKey = `week_${weekStart.toISOString().split('T')[0]}`;
             
             let weekData = JSON.parse(localStorage.getItem(weekKey) || '{}');
@@ -737,7 +827,6 @@
                 workedMinutes += (new Date() - currentPeriodStart) / (1000 * 60);
             }
 
-            // Restar 20 minutos de desayuno SOLO cuando se ha marcado la salida a comer
             if (hadEntry && todayData.hadLunchOut) {
                 workedMinutes = Math.max(0, workedMinutes - 20);
             }
@@ -782,8 +871,12 @@
             
             const exitElement = document.getElementById('estimatedExit');
 
-            if (currentState === 'in') {
-                exitElement.textContent = '--:--';
+            if (currentState === 'in' || currentState === 'lunch_back') {
+                 const now = new Date();
+                const estimatedExit = new Date(now.getTime() + remainingMinutes * 60000);
+                const exitHour = estimatedExit.getHours().toString().padStart(2, '0');
+                const exitMinute = estimatedExit.getMinutes().toString().padStart(2, '0');
+                exitElement.textContent = `${exitHour}:${exitMinute}`;
             } else if (currentState === 'lunch_out') {
                 const lunchOutEntry = todayData.entries.find(e => e.type === 'lunch_out');
                 if (lunchOutEntry) {
@@ -796,12 +889,6 @@
                 } else {
                     exitElement.textContent = '--:--';
                 }
-            } else if (currentState === 'lunch_back') {
-                const now = new Date();
-                const estimatedExit = new Date(now.getTime() + remainingMinutes * 60000);
-                const exitHour = estimatedExit.getHours().toString().padStart(2, '0');
-                const exitMinute = estimatedExit.getMinutes().toString().padStart(2, '0');
-                exitElement.textContent = `${exitHour}:${exitMinute}`;
             } else {
                 exitElement.textContent = '--:--';
             }
@@ -878,7 +965,8 @@
             
             let html = '<h3>Historial de la Semana</h3>';
             
-            // Generar días de la semana laboral
+            const todayStr = new Date().toISOString().split('T')[0];
+
             for (let i = 0; i < 5; i++) {
                 const day = new Date(weekStart);
                 day.setDate(weekStart.getDate() + i);
@@ -888,7 +976,14 @@
                 const dayName = day.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' });
                 
                 html += `<div class="day-record">`;
-                html += `<div class="day-header">${dayName}</div>`;
+                html += `<div class="day-header">
+                            <span>${dayName}</span>`;
+
+                if (dayKey <= todayStr) {
+                    html += `<button class="add-btn" style="padding: 5px 10px;" onclick="openEditModal('${dayKey}')">Editar</button>`;
+                }
+                
+                html += `</div>`;
                 
                 if (dayData && dayData.entries.length > 0) {
                     const workedHours = Math.floor(dayData.workedMinutes / 60);
@@ -897,17 +992,10 @@
                     html += `<div class="time-entry"><span>Horas trabajadas:</span><span>${workedHours}:${workedMins.toString().padStart(2, '0')}</span></div>`;
                     
                     dayData.entries.forEach(entry => {
-                        const time = new Date(entry.time);
                         const timeStr = `${entry.hour.toString().padStart(2, '0')}:${entry.minute.toString().padStart(2, '0')}`;
-                        const actionText = {
-                            'enter': 'Entrada',
-                            'lunch_out': 'Salida comida',
-                            'lunch_back': 'Vuelta comida',
-                            'exit': 'Salida'
-                        };
                         
                         let entryClass = '';
-                        let entryText = `<span>${actionText[entry.type]}:</span><span>${timeStr}</span>`;
+                        let entryText = `<span>${ACTION_TEXT[entry.type]}:</span><span>${timeStr}</span>`;
                         
                         if (entry.isOvertime) {
                             entryClass = 'overtime-entry';
@@ -927,6 +1015,164 @@
             historyContent.innerHTML = html;
         }
 
+        function openEditModal(dayKey) {
+            const modal = document.getElementById('editDayModal');
+            modal.dataset.dayKey = dayKey;
+
+            const weekStart = getMonday(new Date(dayKey));
+            const weekKey = `week_${weekStart.toISOString().split('T')[0]}`;
+            const weekData = JSON.parse(localStorage.getItem(weekKey) || '{}');
+            let dayData = weekData[dayKey];
+
+            if (!dayData) {
+                dayData = { date: dayKey, entries: [], workedMinutes: 0 };
+            }
+
+            const modalTitle = document.getElementById('editDayModalTitle');
+            const dayName = new Date(dayKey).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            modalTitle.textContent = `${dayName}`;
+
+            const container = document.getElementById('existingEntriesContainer');
+            let html = '<h3>Registros Existentes</h3>';
+            let entryTypes = new Set();
+            if (dayData.entries && dayData.entries.length > 0) {
+                dayData.entries.forEach((entry, index) => {
+                    entryTypes.add(entry.type);
+                    const timeStr = `${entry.hour.toString().padStart(2, '0')}:${entry.minute.toString().padStart(2, '0')}`;
+                    html += `
+                        <div class="edit-entry" data-index="${index}">
+                            <label>${ACTION_TEXT[entry.type]}:</label>
+                            <input type="time" value="${timeStr}">
+                            <button class="delete-btn" onclick="this.parentElement.remove()">Eliminar</button>
+                            <input type="hidden" value="${entry.type}">
+                        </div>
+                    `;
+                });
+            } else {
+                html += '<p>No hay registros para este día.</p>';
+            }
+            container.innerHTML = html;
+
+            const addNewSection = document.getElementById('addNewEntrySection');
+            const hasAllEntries = ['enter', 'lunch_out', 'lunch_back', 'exit'].every(type => entryTypes.has(type));
+            
+            if (hasAllEntries) {
+                addNewSection.style.display = 'none';
+            } else {
+                addNewSection.style.display = 'block';
+            }
+            modal.style.display = "block";
+        }
+
+        function closeEditModal() {
+            const modal = document.getElementById('editDayModal');
+            modal.style.display = "none";
+        }
+
+        function addNewEntryToModal() {
+            const type = document.getElementById('newEntryType').value;
+            const time = document.getElementById('newEntryTime').value;
+
+            if (!time) {
+                showAlert('Por favor, introduce una hora.', 'warning');
+                return;
+            }
+
+            const container = document.getElementById('existingEntriesContainer');
+            const noRecordsP = container.querySelector('p');
+            if (noRecordsP) noRecordsP.remove();
+            
+            const html = `
+                <div class="edit-entry" data-index="new">
+                    <label>${ACTION_TEXT[type]}:</label>
+                    <input type="time" value="${time}">
+                    <button class="delete-btn" onclick="this.parentElement.remove()">Eliminar</button>
+                    <input type="hidden" value="${type}">
+                </div>
+            `;
+            container.innerHTML += html;
+            
+            document.getElementById('newEntryTime').value = '';
+        }
+
+        function saveDayChanges() {
+            const modal = document.getElementById('editDayModal');
+            const dayKey = modal.dataset.dayKey;
+
+            const weekStart = getMonday(new Date(dayKey));
+            const weekKey = `week_${weekStart.toISOString().split('T')[0]}`;
+            const weekData = JSON.parse(localStorage.getItem(weekKey) || '{}');
+            
+            const newEntries = [];
+            const entryElements = document.querySelectorAll('#existingEntriesContainer .edit-entry');
+            
+            entryElements.forEach(el => {
+                const timeStr = el.querySelector('input[type="time"]').value;
+                const type = el.querySelector('input[type="hidden"]').value;
+                const [hour, minute] = timeStr.split(':').map(Number);
+                
+                const entryDate = new Date(dayKey + 'T00:00:00.000Z');
+                entryDate.setUTCHours(hour, minute, 0, 0);
+
+                newEntries.push({
+                    type: type,
+                    time: entryDate.toISOString(),
+                    hour: hour,
+                    minute: minute,
+                    isOvertime: false,
+                    reason: '',
+                    description: ''
+                });
+            });
+
+            newEntries.sort((a, b) => new Date(a.time) - new Date(b.time));
+
+            let dayData = weekData[dayKey] || { date: dayKey, entries: [] };
+            dayData.entries = newEntries;
+            
+            dayData = recalculateWorkedTimeForDay(dayData);
+            
+            weekData[dayKey] = dayData;
+            localStorage.setItem(weekKey, JSON.stringify(weekData));
+            
+            if (dayKey === todayData.date) {
+                localStorage.setItem(`workday_${dayKey}`, JSON.stringify(dayData));
+                loadTodayData();
+                updateDisplay();
+                updateButtons();
+            }
+
+            showAlert('Jornada actualizada correctamente', 'success');
+            closeEditModal();
+            loadWeeklyHistory();
+        }
+
+        function recalculateWorkedTimeForDay(dayData) {
+            dayData.entries.sort((a, b) => new Date(a.time) - new Date(b.time));
+            let workedMinutes = 0;
+            let currentPeriodStart = null;
+            let hadEntry = false;
+            dayData.hadLunchOut = dayData.entries.some(e => e.type === 'lunch_out');
+
+            for (const entry of dayData.entries) {
+                const entryTime = new Date(entry.time);
+                if (entry.type === 'enter' || entry.type === 'lunch_back') {
+                    currentPeriodStart = entryTime;
+                    if (entry.type === 'enter') hadEntry = true;
+                } else if ((entry.type === 'lunch_out' || entry.type === 'exit') && currentPeriodStart) {
+                    workedMinutes += (entryTime - currentPeriodStart) / (1000 * 60);
+                    currentPeriodStart = null;
+                }
+            }
+
+            if (hadEntry && dayData.hadLunchOut) {
+                workedMinutes = Math.max(0, workedMinutes - 20);
+            }
+
+            dayData.workedMinutes = Math.floor(workedMinutes);
+            return dayData;
+        }
+
         function exportWeekToExcel() {
             const today = new Date();
             const weekStart = getMonday(today);
@@ -940,18 +1186,11 @@
             }
 
             const rows = [['Fecha', 'Hora', 'Tipo', 'Motivo', 'Descripción', 'Horas Totales']];
-            const actionText = {
-                'enter': 'Entrada',
-                'lunch_out': 'Salida comida',
-                'lunch_back': 'Vuelta comida',
-                'exit': 'Salida'
-            };
-
+            
             const sortedDays = Object.keys(weekData).sort((a, b) => new Date(a) - new Date(b));
 
             for (const dayKey of sortedDays) {
                 const dayData = weekData[dayKey];
-                const dayName = new Date(dayKey).toLocaleDateString('es-ES', { weekday: 'long' });
                 const workedHours = Math.floor(dayData.workedMinutes / 60);
                 const workedMins = dayData.workedMinutes % 60;
                 const workedTimeStr = `${workedHours.toString().padStart(2, '0')}:${workedMins.toString().padStart(2, '0')}`;
@@ -964,10 +1203,10 @@
                         rows.push([
                             dayKey,
                             timeStr,
-                            actionText[entry.type],
+                            ACTION_TEXT[entry.type],
                             reasonText,
                             entry.description,
-                            index === dayData.entries.length - 1 ? workedTimeStr : '' // Add worked time only for the last entry of the day
+                            index === dayData.entries.length - 1 ? workedTimeStr : ''
                         ]);
                     });
                 } else {
@@ -988,15 +1227,20 @@
             XLSX.writeFile(workbook, `jornada_semanal_${weekStart.toISOString().split('T')[0]}.xlsx`);
         }
 
-        // Inicializar aplicación
         document.addEventListener('DOMContentLoaded', initApp);
         
-        // Cleanup al cerrar
         window.addEventListener('beforeunload', () => {
             if (workTimer) {
                 clearInterval(workTimer);
             }
         });
+        
+        window.onclick = function(event) {
+            const modal = document.getElementById('editDayModal');
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
     </script>
 </body>
 </html>
