@@ -791,10 +791,12 @@
                 workTimer = null;
             }
         }
-
+        
         function calculateWorkedTime() {
             let workedMinutes = 0;
             let currentPeriodStart = null;
+            const entryDate = todayData.entries.length > 0 ? new Date(todayData.entries[0].time) : new Date();
+            const isFriday = entryDate.getDay() === 5;
             let hadEntry = todayData.entries.some(e => e.type === 'enter');
             todayData.hadLunchOut = todayData.entries.some(e => e.type === 'lunch_out');
 
@@ -813,8 +815,12 @@
                 workedMinutes += (new Date() - currentPeriodStart) / (1000 * 60);
             }
 
-            if (hadEntry && todayData.hadLunchOut) {
-                workedMinutes = Math.max(0, workedMinutes - 20);
+            if (hadEntry) {
+                if (isFriday) {
+                    workedMinutes = Math.max(0, workedMinutes - 20);
+                } else if (todayData.hadLunchOut) {
+                    workedMinutes = Math.max(0, workedMinutes - 20);
+                }
             }
 
             todayData.workedMinutes = Math.floor(workedMinutes);
@@ -857,7 +863,6 @@
             
             const exitElement = document.getElementById('estimatedExit');
 
-            // --- INICIO DE CAMBIO: Lógica de estimación de salida actualizada ---
             if (currentState === 'in') {
                 exitElement.textContent = '--:--';
             } else if (currentState === 'lunch_out') {
@@ -881,7 +886,6 @@
             } else {
                 exitElement.textContent = '--:--';
             }
-            // --- FIN DE CAMBIO ---
         }
 
         function updateButtons() {
@@ -1061,7 +1065,6 @@
             modal.style.display = "none";
         }
         
-        // --- INICIO DE CAMBIO: `addNewEntryToModal` corregida para evitar errores ---
         function addNewEntryToModal() {
             const type = document.getElementById('newEntryType').value;
             const time = document.getElementById('newEntryTime').value;
@@ -1104,7 +1107,6 @@
             
             document.getElementById('newEntryTime').value = '';
         }
-        // --- FIN DE CAMBIO ---
 
         function saveDayChanges() {
             const modal = document.getElementById('editDayModal');
@@ -1157,32 +1159,40 @@
             closeEditModal();
             loadWeeklyHistory();
         }
-
+        
+        // --- INICIO DE CAMBIO: Lógica de `recalculateWorkedTimeForDay` actualizada para el viernes ---
         function recalculateWorkedTimeForDay(dayData) {
             dayData.entries.sort((a, b) => new Date(a.time) - new Date(b.time));
             let workedMinutes = 0;
             let currentPeriodStart = null;
-            let hadEntry = false;
+            
+            const entryDate = dayData.entries.length > 0 ? new Date(dayData.entries[0].time) : new Date(dayData.date);
+            const isFriday = entryDate.getDay() === 5;
+            let hadEntry = dayData.entries.some(e => e.type === 'enter');
             dayData.hadLunchOut = dayData.entries.some(e => e.type === 'lunch_out');
 
             for (const entry of dayData.entries) {
                 const entryTime = new Date(entry.time);
                 if (entry.type === 'enter' || entry.type === 'lunch_back') {
                     currentPeriodStart = entryTime;
-                    if (entry.type === 'enter') hadEntry = true;
                 } else if ((entry.type === 'lunch_out' || entry.type === 'exit') && currentPeriodStart) {
                     workedMinutes += (entryTime - currentPeriodStart) / (1000 * 60);
                     currentPeriodStart = null;
                 }
             }
 
-            if (hadEntry && dayData.hadLunchOut) {
-                workedMinutes = Math.max(0, workedMinutes - 20);
+            if (hadEntry) {
+                if (isFriday) {
+                    workedMinutes = Math.max(0, workedMinutes - 20);
+                } else if (dayData.hadLunchOut) {
+                    workedMinutes = Math.max(0, workedMinutes - 20);
+                }
             }
 
             dayData.workedMinutes = Math.floor(workedMinutes);
             return dayData;
         }
+        // --- FIN DE CAMBIO ---
 
         function exportWeekToExcel() {
             const today = new Date();
