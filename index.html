@@ -489,6 +489,7 @@
                 </div>
                 <button class="add-btn" onclick="addNewEntryToModal()">Añadir</button>
             </div>
+            
             <hr style="margin: 20px 0;">
 
             <button class="confirm-btn" onclick="saveDayChanges()">Guardar Cambios</button>
@@ -504,7 +505,9 @@
             lunchMinutes: 0,
             hadLunchOut: false
         };
-        let pendingAction = null;
+        // --- INICIO DE CAMBIO: `pendingAction` ahora es un objeto ---
+        let pendingAction = null; // Almacenará { type, time }
+        // --- FIN DE CAMBIO ---
         let workTimer = null;
 
         const SCHEDULE = {
@@ -550,6 +553,7 @@
 
         function initApp() {
             loadTodayData();
+            
             const today = new Date().toISOString().split('T')[0];
             if (todayData.date !== today) {
                 todayData = {
@@ -626,7 +630,8 @@
             const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit' };
             document.getElementById('currentTime').textContent = now.toLocaleTimeString('es-ES', timeOptions);
         }
-
+        
+        // --- INICIO DE CAMBIO: Lógica de `addManualEntry` actualizada ---
         function addManualEntry() {
             const type = document.getElementById('manualType').value;
             const timeStr = document.getElementById('manualTime').value;
@@ -636,56 +641,53 @@
             }
 
             const [hours, minutes] = timeStr.split(':').map(Number);
-            const newEntryDate = new Date();
-            newEntryDate.setHours(hours, minutes, 0, 0);
+            const entryDate = new Date();
+            entryDate.setHours(hours, minutes, 0, 0);
 
-            const tempEntries = JSON.parse(JSON.stringify(todayData.entries));
-
-            const existingEntryIndex = tempEntries.findIndex(entry => entry.type === type);
-            if (existingEntryIndex > -1) {
-                tempEntries.splice(existingEntryIndex, 1);
-            }
-            
-            const newEntry = {
-                type: type,
-                time: newEntryDate.toISOString()
-            };
-            tempEntries.push(newEntry);
-            
+            // Validar orden cronológico antes de proceder
+            const tempEntries = [...todayData.entries, { type, time: entryDate.toISOString() }];
             tempEntries.sort((a, b) => new Date(a.time) - new Date(b.time));
 
             const typeOrder = { 'enter': 1, 'lunch_out': 2, 'lunch_back': 3, 'exit': 4 };
             let lastTypeOrder = 0;
-            for (const currentEntry of tempEntries) {
-                const currentTypeOrder = typeOrder[currentEntry.type];
+            for (const entry of tempEntries) {
+                const currentTypeOrder = typeOrder[entry.type];
                 if (currentTypeOrder < lastTypeOrder) {
-                    showAlert('El orden cronológico de los registros es incorrecto. Por favor, ajuste la hora.', 'warning');
+                    showAlert('El orden cronológico de los registros es incorrecto.', 'warning');
                     return;
                 }
                 lastTypeOrder = currentTypeOrder;
             }
+
+            // Comprobar si es fuera de hora
+            const isOvertime = isOvertimeAction(type, entryDate);
             
-            const realExistingEntryIndex = todayData.entries.findIndex(entry => entry.type === type);
-            if (realExistingEntryIndex > -1) {
-                todayData.entries.splice(realExistingEntryIndex, 1);
+            if (isOvertime) {
+                pendingAction = { type: type, time: entryDate };
+                showOvertimeDialog();
+            } else {
+                executeAction(type, entryDate);
             }
-            executeAction(type, newEntryDate);
         }
+        // --- FIN DE CAMBIO ---
 
         function handleAction(action) {
             const now = new Date();
             const isOvertime = isOvertimeAction(action, now);
             
             if (isOvertime) {
-                showOvertimeDialog(action);
+                // --- INICIO DE CAMBIO: Guardar objeto en pendingAction ---
+                pendingAction = { type: action, time: now };
+                showOvertimeDialog();
+                // --- FIN DE CAMBIO ---
             } else {
                 executeAction(action, now);
             }
         }
 
         function isOvertimeAction(action, time) {
-            const today = new Date();
-            const isFriday = today.getDay() === 5;
+            const dayOfWeek = time.getDay();
+            const isFriday = dayOfWeek === 5;
             const schedule = isFriday ? SCHEDULE.friday : SCHEDULE.weekday;
             
             const hour = time.getHours();
@@ -699,15 +701,9 @@
                     return totalMinutes < minEntry || totalMinutes > maxEntry;
                     
                 case 'exit':
-                    if (!isFriday) {
-                        const minExit = schedule.minExit.hour * 60 + schedule.minExit.minute;
-                        const maxExit = schedule.maxExit.hour * 60 + schedule.maxExit.minute;
-                        return totalMinutes < minExit || totalMinutes > maxExit;
-                    } else {
-                        const minExitFri = schedule.minExit.hour * 60 + schedule.minExit.minute;
-                        const maxExitFri = schedule.maxExit.hour * 60 + schedule.maxExit.minute;
-                        return totalMinutes < minExitFri || totalMinutes > maxExitFri;
-                    }
+                    const minExit = schedule.minExit.hour * 60 + schedule.minExit.minute;
+                    const maxExit = schedule.maxExit.hour * 60 + schedule.maxExit.minute;
+                    return totalMinutes < minExit || totalMinutes > maxExit;
                     
                 case 'lunch_back':
                     if (!isFriday) {
@@ -722,11 +718,11 @@
             }
         }
 
-        function showOvertimeDialog(action) {
-            pendingAction = action;
+        function showOvertimeDialog() {
             document.getElementById('overtimeSection').classList.add('active');
         }
 
+        // --- INICIO DE CAMBIO: `confirmOvertimeAction` simplificada ---
         function confirmOvertimeAction() {
             const reason = document.getElementById('overtimeReason').value;
             const description = document.getElementById('overtimeDescription').value;
@@ -736,57 +732,65 @@
                 return;
             }
             
-            const now = new Date();
-            executeAction(pendingAction, now, true, reason, description);
+            // La acción pendiente (sea manual o de botón) ya tiene el tipo y la hora correctos
+            executeAction(pendingAction.type, pendingAction.time, true, reason, description);
             
             document.getElementById('overtimeSection').classList.remove('active');
             document.getElementById('overtimeReason').value = '';
             document.getElementById('overtimeDescription').value = '';
             pendingAction = null;
         }
-
+        // --- FIN DE CAMBIO ---
+        
+        // --- INICIO DE CAMBIO: `executeAction` ahora centraliza la lógica de añadir registros ---
         function executeAction(action, time, isOvertime = false, reason = '', description = '') {
+            // Eliminar registro previo del mismo tipo si existe (para el ingreso manual)
+            const existingEntryIndex = todayData.entries.findIndex(entry => entry.type === action);
+            if (existingEntryIndex > -1) {
+                todayData.entries.splice(existingEntryIndex, 1);
+            }
+
             const entry = {
                 type: action,
                 time: time.toISOString(),
                 hour: time.getHours(),
                 minute: time.getMinutes(),
-                isOvertime: isOvertime,
-                reason: reason,
-                description: description
+                isOvertime,
+                reason,
+                description
             };
             
             todayData.entries.push(entry);
+            todayData.entries.sort((a, b) => new Date(a.time) - new Date(b.time)); // Reordenar siempre
+
+            const lastEntry = todayData.entries[todayData.entries.length - 1];
             
-            switch (action) {
+            // Actualizar el estado de la aplicación
+            switch (lastEntry.type) {
                 case 'enter':
-                    currentState = 'in';
+                case 'lunch_back':
+                    currentState = lastEntry.type === 'enter' ? 'in' : 'lunch_back';
                     startWorkTimer();
-                    showAlert('Entrada registrada', 'success');
                     break;
                 case 'lunch_out':
                     currentState = 'lunch_out';
                     todayData.hadLunchOut = true;
                     stopWorkTimer();
-                    showAlert('Salida a comer registrada', 'success');
-                    break;
-                case 'lunch_back':
-                    currentState = 'lunch_back';
-                    startWorkTimer();
-                    showAlert('Vuelta de comer registrada', 'success');
                     break;
                 case 'exit':
                     currentState = 'out';
                     stopWorkTimer();
-                    showAlert('Salida registrada', 'success');
                     break;
             }
             
+            showAlert(`${ACTION_TEXT[action]} registrada`, 'success');
+
             calculateWorkedTime();
             updateDisplay();
             updateButtons();
             saveTodayData();
         }
+        // --- FIN DE CAMBIO ---
 
         function startWorkTimer() {
             if (workTimer) clearInterval(workTimer);
@@ -804,19 +808,16 @@
         }
 
         function calculateWorkedTime() {
-            todayData.entries.sort((a, b) => new Date(a.time) - new Date(b.time));
             let workedMinutes = 0;
             let currentPeriodStart = null;
-            let hadEntry = false;
+            let hadEntry = todayData.entries.some(e => e.type === 'enter');
+            todayData.hadLunchOut = todayData.entries.some(e => e.type === 'lunch_out');
 
             for (const entry of todayData.entries) {
                 const entryTime = new Date(entry.time);
 
                 if (entry.type === 'enter' || entry.type === 'lunch_back') {
                     currentPeriodStart = entryTime;
-                    if (entry.type === 'enter') {
-                        hadEntry = true;
-                    }
                 } else if ((entry.type === 'lunch_out' || entry.type === 'exit') && currentPeriodStart) {
                     workedMinutes += (entryTime - currentPeriodStart) / (1000 * 60);
                     currentPeriodStart = null;
@@ -904,24 +905,24 @@
             
             Object.values(buttons).forEach(btn => btn.style.display = 'none');
             
+            const hasEnter = todayData.entries.some(e => e.type === 'enter');
+            const hasLunchOut = todayData.entries.some(e => e.type === 'lunch_out');
+            const hasLunchBack = todayData.entries.some(e => e.type === 'lunch_back');
+            const hasExit = todayData.entries.some(e => e.type === 'exit');
             const isFriday = new Date().getDay() === 5;
             
-            switch (currentState) {
-                case 'out':
-                    buttons.enterBtn.style.display = 'block';
-                    break;
-                case 'in':
-                    if (!isFriday) {
-                        buttons.lunchOutBtn.style.display = 'block';
-                    }
-                    buttons.exitBtn.style.display = 'block';
-                    break;
-                case 'lunch_out':
-                    buttons.lunchBackBtn.style.display = 'block';
-                    break;
-                case 'lunch_back':
-                    buttons.exitBtn.style.display = 'block';
-                    break;
+            if (hasExit) {
+            } else if (hasLunchBack) {
+                buttons.exitBtn.style.display = 'block';
+            } else if (hasLunchOut) {
+                buttons.lunchBackBtn.style.display = 'block';
+            } else if (hasEnter) {
+                if (!isFriday) {
+                    buttons.lunchOutBtn.style.display = 'block';
+                }
+                buttons.exitBtn.style.display = 'block';
+            } else {
+                buttons.enterBtn.style.display = 'block';
             }
         }
 
@@ -1030,10 +1031,10 @@
 
             const modalTitle = document.getElementById('editDayModalTitle');
             const dayName = new Date(dayKey).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-            modalTitle.textContent = `${dayName}`;
+            modalTitle.textContent = `Editar Jornada: ${dayName}`;
 
             const container = document.getElementById('existingEntriesContainer');
-            let html = '<h3>Registros Existentes</h3>';
+            let html = '<h4>Registros Existentes</h4>';
             let entryTypes = new Set();
             if (dayData.entries && dayData.entries.length > 0) {
                 dayData.entries.forEach((entry, index) => {
