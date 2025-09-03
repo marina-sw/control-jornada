@@ -1142,8 +1142,8 @@
                 const type = el.querySelector('input[type="hidden"]').value;
                 const [hour, minute] = timeStr.split(':').map(Number);
                 
-                const entryDate = new Date(dayKey + 'T00:00:00.000Z');
-                entryDate.setUTCHours(hour, minute, 0, 0);
+                const entryDate = new Date(dayKey);
+                entryDate.setHours(hour, minute, 0, 0);
 
                 newEntries.push({
                     type: type,
