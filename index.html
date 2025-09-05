@@ -815,12 +815,8 @@
                 workedMinutes += (new Date() - currentPeriodStart) / (1000 * 60);
             }
 
-            if (hadEntry) {
-                if (isFriday) {
-                    workedMinutes = Math.max(0, workedMinutes - 20);
-                } else if (todayData.hadLunchOut) {
-                    workedMinutes = Math.max(0, workedMinutes - 20);
-                }
+            if (hadEntry && todayData.hadLunchOut) {
+                workedMinutes = Math.max(0, workedMinutes - 20);
             }
 
             todayData.workedMinutes = Math.floor(workedMinutes);
@@ -1198,12 +1194,8 @@
                 }
             }
 
-            if (hadEntry) {
-                if (isFriday) {
-                    workedMinutes = Math.max(0, workedMinutes - 20);
-                } else if (dayData.hadLunchOut) {
-                    workedMinutes = Math.max(0, workedMinutes - 20);
-                }
+            if (hadEntry && dayData.hadLunchOut) {
+                workedMinutes = Math.max(0, workedMinutes - 20);
             }
 
             dayData.workedMinutes = Math.floor(workedMinutes);
