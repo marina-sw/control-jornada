@@ -516,8 +516,8 @@
                 maxExit: { hour: 19, minute: 0 },
                 mandatoryStart: { hour: 9, minute: 0 },
                 mandatoryEnd: { hour: 17, minute: 0 },
-                lunchStart: { hour: 13, minute: 50 },
-                lunchEnd: { hour: 14, minute: 30 },
+                lunchStartMin: { hour: 13, minute: 50 },
+                lunchStartMax: { hour: 14, minute: 50 },
                 lunchReturnMin: { hour: 14, minute: 30 },
                 lunchReturnMax: { hour: 15, minute: 30 },
                 requiredMinutes: 510
@@ -563,7 +563,6 @@
                 };
                 currentState = 'out';
             }
-
             updateDateTime();
             updateDisplay();
             updateButtons();
@@ -571,7 +570,6 @@
             if (currentState === 'in' || currentState === 'lunch_back') {
                 startWorkTimer();
             }
-            
             setInterval(updateDateTime, 1000);
         }
 
@@ -586,10 +584,9 @@
                 if (todayData.entries.length > 0) {
                     const lastEntry = todayData.entries[todayData.entries.length - 1];
                     currentState = lastEntry.type === 'enter' ? 'in' :
-                                lastEntry.type === 'lunch_out' ? 'lunch_out' :
-                                lastEntry.type === 'lunch_back' ? 'lunch_back' : 'out';
-                }
-                
+                        lastEntry.type === 'lunch_out' ? 'lunch_out' :
+                        lastEntry.type === 'lunch_back' ? 'lunch_back' : 'out';
+                } 
                 calculateWorkedTime();
             } else {
                 todayData.date = today;
@@ -608,7 +605,6 @@
             
             let weekData = JSON.parse(localStorage.getItem(weekKey) || '{}');
             weekData[todayData.date] = todayData;
-            
             localStorage.setItem(weekKey, JSON.stringify(weekData));
         }
 
@@ -654,7 +650,6 @@
                 }
                 lastTypeOrder = currentTypeOrder;
             }
-
             const isOvertime = isOvertimeAction(type, entryDate);
             
             if (isOvertime) {
@@ -697,6 +692,14 @@
                     const maxExit = schedule.maxExit.hour * 60 + schedule.maxExit.minute;
                     return totalMinutes < minExit || totalMinutes > maxExit;
                     
+                case 'lunch_out': 
+                    if (!isFriday) {
+                        const lunchStartMin = schedule.lunchStartMin.hour * 60 + schedule.lunchStartMin.minute;
+                        const lunchStartMax = schedule.lunchStartMax.hour * 60 + schedule.lunchStartMax.minute;
+                        return totalMinutes < lunchStartMin || totalMinutes > lunchStartMax;
+                    }
+                    return false;
+                    
                 case 'lunch_back':
                     if (!isFriday) {
                         const lunchReturnMin = schedule.lunchReturnMin.hour * 60 + schedule.lunchReturnMin.minute;
@@ -704,7 +707,7 @@
                         return totalMinutes < lunchReturnMin || totalMinutes > lunchReturnMax;
                     }
                     return false;
-                    
+
                 default:
                     return false;
             }
@@ -721,8 +724,7 @@
             if (!reason) {
                 showAlert('Por favor selecciona un motivo', 'warning');
                 return;
-            }
-            
+            }  
             executeAction(pendingAction.type, pendingAction.time, true, reason, description);
             
             document.getElementById('overtimeSection').classList.remove('active');
@@ -749,7 +751,6 @@
             
             todayData.entries.push(entry);
             todayData.entries.sort((a, b) => new Date(a.time) - new Date(b.time));
-
             const lastEntry = todayData.entries[todayData.entries.length - 1];
             
             switch (lastEntry.type) {
@@ -768,7 +769,6 @@
                     stopWorkTimer();
                     break;
             }
-            
             showAlert(`${ACTION_TEXT[action]} registrada`, 'success');
 
             calculateWorkedTime();
@@ -818,7 +818,6 @@
             if (hadEntry && todayData.hadLunchOut) {
                 workedMinutes = Math.max(0, workedMinutes - 20);
             }
-
             todayData.workedMinutes = Math.floor(workedMinutes);
         }
 
@@ -856,7 +855,6 @@
                 remainingElement.textContent = `${remainingHours.toString().padStart(2, '0')}:${remainingMins.toString().padStart(2, '0')}`;
                 remainingElement.className = 'status-value';
             }
-            
             const exitElement = document.getElementById('estimatedExit');
 
             if (currentState === 'in') {
@@ -869,13 +867,13 @@
                 } else {
                     exitElement.textContent = '--:--';
                 }
+                
             } else if (currentState === 'lunch_out') {
                 const lunchOutEntry = todayData.entries.find(e => e.type === 'lunch_out');
                 if (lunchOutEntry) {
                     const lunchOutTime = new Date(lunchOutEntry.time);
                     const minReturn = new Date(lunchOutTime.getTime() + 40 * 60000 + remainingMinutes * 60000);
                     const maxReturn = new Date(lunchOutTime.getTime() + 100 * 60000 + remainingMinutes * 60000);
-
                     const format = d => `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
                     exitElement.textContent = `${format(minReturn)} - ${format(maxReturn)}`;
                 } else {
@@ -899,7 +897,6 @@
                 lunchBackBtn: document.getElementById('lunchBackBtn'),
                 exitBtn: document.getElementById('exitBtn')
             };
-            
             Object.values(buttons).forEach(btn => btn.style.display = 'none');
             
             const hasEnter = todayData.entries.some(e => e.type === 'enter');
@@ -929,7 +926,6 @@
             const alertDiv = document.createElement('div');
             alertDiv.className = `alert alert-${type}`;
             alertDiv.textContent = message;
-            
             alertContainer.appendChild(alertDiv);
             
             setTimeout(() => {
@@ -964,7 +960,6 @@
             
             let totalWeekMinutes = 0;
             let dailyHtml = '';
-            
             const todayStr = new Date().toISOString().split('T')[0];
 
             for (let i = 0; i < 5; i++) {
@@ -980,13 +975,11 @@
                 const dayName = day.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' });
                 
                 dailyHtml += `<div class="day-record">`;
-                dailyHtml += `<div class="day-header">
-                            <span>${dayName}</span>`;
+                dailyHtml += `<div class="day-header"> <span>${dayName}</span>`;
 
                 if (dayKey <= todayStr) {
                     dailyHtml += `<button class="add-btn" style="padding: 5px 10px;" onclick="openEditModal('${dayKey}')">Editar</button>`;
                 }
-                
                 dailyHtml += `</div>`;
                 
                 if (dayData && dayData.entries.length > 0) {
@@ -1012,10 +1005,8 @@
                 } else {
                     dailyHtml += `<div class="time-entry"><span>Sin registros</span></div>`;
                 }
-                
                 dailyHtml += `</div>`;
             }
-            
             const totalHours = Math.floor(totalWeekMinutes / 60);
             const totalMinutes = totalWeekMinutes % 60;
             
@@ -1118,7 +1109,6 @@
             newEntryDiv.appendChild(hiddenInput);
 
             container.appendChild(newEntryDiv);
-            
             document.getElementById('newEntryTime').value = '';
         }
 
@@ -1151,7 +1141,6 @@
                     description: ''
                 });
             });
-
             newEntries.sort((a, b) => new Date(a.time) - new Date(b.time));
 
             let dayData = weekData[dayKey] || { date: dayKey, entries: [] };
@@ -1168,7 +1157,6 @@
                 updateDisplay();
                 updateButtons();
             }
-
             showAlert('Jornada actualizada correctamente', 'success');
             closeEditModal();
             loadWeeklyHistory();
@@ -1197,7 +1185,6 @@
             if (hadEntry && dayData.hadLunchOut) {
                 workedMinutes = Math.max(0, workedMinutes - 20);
             }
-
             dayData.workedMinutes = Math.floor(workedMinutes);
             return dayData;
         }
@@ -1271,7 +1258,6 @@
 
                 rows.push(Object.values(rowData));
             }
-
             const worksheet = XLSX.utils.aoa_to_sheet(rows);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, 'Jornada Semanal');
@@ -1283,7 +1269,6 @@
 
             XLSX.writeFile(workbook, `jornada_semanal_${weekStart.toISOString().split('T')[0]}.xlsx`);
         }
-
         document.addEventListener('DOMContentLoaded', initApp);
         
         window.addEventListener('beforeunload', () => {
