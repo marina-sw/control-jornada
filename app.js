@@ -275,6 +275,23 @@ function executeAction(
   reason = "",
   description = ""
 ) {
+  if (action === "lunch_back") {
+    const lunchOutEntry = todayData.entries.find(e => e.type === "lunch_out");
+    if (lunchOutEntry) {
+      const lunchOutTime = new Date(lunchOutEntry.time);
+      const lunchBackTime = time;
+      const diffMinutes = (lunchBackTime - lunchOutTime) / (1000 * 60);
+
+      if (diffMinutes < 40) {
+        const returnTime = new Date(lunchOutTime.getTime() + 40 * 60000);
+        const hours = returnTime.getHours().toString().padStart(2, '0');
+        const minutes = returnTime.getMinutes().toString().padStart(2, '0');
+        showAlert(`La comida debe ser de un mínimo de 40 minutos (${hours}:${minutes})`, "warning");
+        return;
+      }
+    }
+  }
+
   const existingEntryIndex = todayData.entries.findIndex(
     (entry) => entry.type === action
   );
