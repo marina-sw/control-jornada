@@ -8,6 +8,7 @@ let todayData = {
 };
 let pendingAction = null;
 let workTimer = null;
+let overtimePopupTimer = null;
 
 const SCHEDULE = {
   weekday: {
@@ -72,6 +73,19 @@ function initApp() {
     startWorkTimer();
   }
   setInterval(updateDateTime, 1000);
+
+  const reasonSelect = document.getElementById("overtimeReason");
+  const descriptionInput = document.getElementById("overtimeDescription");
+
+  const clearOvertimeTimer = () => {
+    if (overtimePopupTimer) {
+      clearTimeout(overtimePopupTimer);
+      overtimePopupTimer = null;
+    }
+  };
+
+  reasonSelect.addEventListener('change', clearOvertimeTimer);
+  descriptionInput.addEventListener('input', clearOvertimeTimer);
 }
 
 function loadTodayData() {
@@ -244,9 +258,22 @@ function isOvertimeAction(action, time) {
 
 function showOvertimeDialog() {
   document.getElementById("overtimeSection").classList.add("active");
+  if (overtimePopupTimer) {
+    clearTimeout(overtimePopupTimer);
+  }
+  overtimePopupTimer = setTimeout(() => {
+    document.getElementById("overtimeSection").classList.remove("active");
+    pendingAction = null;
+    showAlert("Acción extraordinaria cancelada por inactividad.", "warning");
+  }, 8000);
 }
 
 function confirmOvertimeAction() {
+  if (overtimePopupTimer) {
+    clearTimeout(overtimePopupTimer);
+    overtimePopupTimer = null;
+  }
+
   const reason = document.getElementById("overtimeReason").value;
   const description = document.getElementById("overtimeDescription").value;
 
@@ -286,7 +313,7 @@ function executeAction(
         const returnTime = new Date(lunchOutTime.getTime() + 40 * 60000);
         const hours = returnTime.getHours().toString().padStart(2, '0');
         const minutes = returnTime.getMinutes().toString().padStart(2, '0');
-        showAlert(`La comida debe ser de un mínimo de 40 minutos (${hours}:${minutes})`, "warning");
+        showAlert(`La comida debe ser de un mínimo de 40 minutos. Deberías volver a las ${hours}:${minutes}.`, "warning");
         return;
       }
     }
