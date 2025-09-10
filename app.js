@@ -786,6 +786,23 @@ function saveDayChanges() {
   });
   newEntries.sort((a, b) => new Date(a.time) - new Date(b.time));
 
+  const lunchOutEntry = newEntries.find(e => e.type === 'lunch_out');
+  const lunchBackEntry = newEntries.find(e => e.type === 'lunch_back');
+
+  if (lunchOutEntry && lunchBackEntry) {
+    const lunchOutTime = new Date(lunchOutEntry.time);
+    const lunchBackTime = new Date(lunchBackEntry.time);
+    const diffMinutes = (lunchBackTime - lunchOutTime) / (1000 * 60);
+
+    if (diffMinutes < 40) {
+        const returnTime = new Date(lunchOutTime.getTime() + 40 * 60000);
+        const hours = returnTime.getHours().toString().padStart(2, '0');
+        const minutes = returnTime.getMinutes().toString().padStart(2, '0');
+        showAlert(`La comida debe ser de un mínimo de 40 minutos. Deberías volver a las ${hours}:${minutes}.`, "warning");
+        return;
+    }
+  }
+
   let dayData = weekData[dayKey] || { date: dayKey, entries: [] };
   dayData.entries = newEntries;
 
