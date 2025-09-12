@@ -411,7 +411,7 @@ function calculateWorkedTime() {
     workedMinutes += (new Date() - currentPeriodStart) / (1000 * 60);
   }
 
-  if (hadEntry && todayData.hadLunchOut) {
+  if (hadEntry && (isFriday || todayData.hadLunchOut)) {
     workedMinutes = Math.max(0, workedMinutes - 20);
   }
   todayData.workedMinutes = Math.floor(workedMinutes);
@@ -848,7 +848,7 @@ function recalculateWorkedTimeForDay(dayData) {
     }
   }
 
-  if (hadEntry && dayData.hadLunchOut) {
+  if (hadEntry && (isFriday || dayData.hadLunchOut)) {
     workedMinutes = Math.max(0, workedMinutes - 20);
   }
   dayData.workedMinutes = Math.floor(workedMinutes);
