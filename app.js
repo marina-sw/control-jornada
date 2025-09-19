@@ -470,7 +470,7 @@ function updateDisplay() {
     if (isFriday) {
       const now = new Date();
       const estimatedExit = new Date(
-        now.getTime() + remainingMinutes * 60000 + 20 * 60000
+        now.getTime() + remainingMinutes * 60000
       );
       const exitHour = estimatedExit.getHours().toString().padStart(2, "0");
       const exitMinute = estimatedExit.getMinutes().toString().padStart(2, "0");
