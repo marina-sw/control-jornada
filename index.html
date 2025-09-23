@@ -139,6 +139,9 @@
           <button class="history-toggle" onclick="exportMonthToExcel()">
             Exportar a Excel
           </button>
+          <button class="history-toggle" onclick="migrateWeeklyToMonthly()">
+            Migrar Datos Antiguos
+          </button>
           <div class="history-content" id="historyContent"></div>
         </div>
       </div>
@@ -178,6 +181,44 @@
         </button>
       </div>
     </div>
+    <script>
+      function migrateWeeklyToMonthly() {
+        let migrationCount = 0;
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key.startsWith("week_")) {
+            try {
+              const weekData = JSON.parse(localStorage.getItem(key));
+              for (const dayKey in weekData) {
+                if (weekData.hasOwnProperty(dayKey)) {
+                  const dayData = weekData[dayKey];
+                  const [year, month] = dayData.date.split("-");
+                  const monthKey = `month_${year}-${month}`;
+
+                  let monthData = JSON.parse(
+                    localStorage.getItem(monthKey) || "{}"
+                  );
+                  monthData[dayData.date] = dayData;
+                  localStorage.setItem(monthKey, JSON.stringify(monthData));
+                }
+              }
+              migrationCount++;
+            } catch (error) {
+              console.error(`Error al migrar la clave ${key}:`, error);
+            }
+          }
+        }
+
+        if (migrationCount > 0) {
+          alert(
+            `¡Migración completada! Se han migrado ${migrationCount} semanas.` +
+              `\n\nAhora puedes refrescar la página para ver el historial mensual actualizado.`
+          );
+        } else {
+          alert("No se encontraron datos semanales para migrar.");
+        }
+      }
+    </script>
     <script src="app.js"></script>
   </body>
 </html>
