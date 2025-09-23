@@ -1,145 +1,183 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Control de Jornada Flexible</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
     <div class="container">
-        <div class="header">
-            <h1>Control de Jornada Flexible</h1> 
+      <div class="header">
+        <h1>Control de Jornada Flexible</h1>
+      </div>
+
+      <div class="date-time">
+        <div id="currentDate"></div>
+        <div id="currentTime"></div>
+      </div>
+
+      <div class="main-content">
+        <div id="alertContainer"></div>
+
+        <div class="status-card">
+          <div class="status-grid">
+            <div class="status-item">
+              <div class="status-label">Estado</div>
+              <div class="status-value" id="workStatus">Fuera</div>
+            </div>
+            <div class="status-item">
+              <div class="status-label">Horas Trabajadas</div>
+              <div class="status-value" id="workedHours">00:00</div>
+            </div>
+            <div class="status-item">
+              <div class="status-label">Horas Restantes</div>
+              <div class="status-value" id="remainingHours">--:--</div>
+            </div>
+            <div class="status-item">
+              <div class="status-label">Hora Estimada Salida</div>
+              <div class="status-value" id="estimatedExit">--:--</div>
+            </div>
+          </div>
         </div>
 
-        <div class="date-time">
-            <div id="currentDate"></div>
-            <div id="currentTime"></div>
+        <div id="actionButtons">
+          <button
+            class="action-button btn-enter"
+            id="enterBtn"
+            onclick="handleAction('enter')"
+          >
+            Entrada
+          </button>
+          <button
+            class="action-button btn-lunch-out"
+            id="lunchOutBtn"
+            onclick="handleAction('lunch_out')"
+            style="display: none"
+          >
+            Salir a Comer
+          </button>
+          <button
+            class="action-button btn-lunch-back"
+            id="lunchBackBtn"
+            onclick="handleAction('lunch_back')"
+            style="display: none"
+          >
+            Volver de Comer
+          </button>
+          <button
+            class="action-button btn-exit"
+            id="exitBtn"
+            onclick="handleAction('exit')"
+            style="display: none"
+          >
+            Salida
+          </button>
         </div>
 
-        <div class="main-content">
-            <div id="alertContainer"></div>
-
-            <div class="status-card">
-                <div class="status-grid">
-                    <div class="status-item">
-                        <div class="status-label">Estado</div>
-                        <div class="status-value" id="workStatus">Fuera</div>
-                    </div>
-                    <div class="status-item">
-                        <div class="status-label">Horas Trabajadas</div>
-                        <div class="status-value" id="workedHours">00:00</div>
-                    </div>
-                    <div class="status-item">
-                        <div class="status-label">Horas Restantes</div>
-                        <div class="status-value" id="remainingHours">--:--</div>
-                    </div>
-                    <div class="status-item">
-                        <div class="status-label">Hora Estimada Salida</div>
-                        <div class="status-value" id="estimatedExit">--:--</div>
-                    </div>
-                </div>
+        <div class="manual-entry">
+          <button class="action-button btn-enter" onclick="toggleManualEntry()">
+            Ingreso Manual
+          </button>
+          <div class="manual-entry-content" id="manualEntryContent">
+            <div class="form-group">
+              <label for="manualType">Tipo:</label>
+              <select id="manualType">
+                <option value="enter">Entrada</option>
+                <option value="lunch_out">Salida comida</option>
+                <option value="lunch_back">Vuelta comida</option>
+                <option value="exit">Salida</option>
+              </select>
+              <label for="manualTime">Hora:</label>
+              <input type="time" id="manualTime" />
             </div>
-
-            <div id="actionButtons">
-                <button class="action-button btn-enter" id="enterBtn" onclick="handleAction('enter')">
-                    Entrada
-                </button>
-                <button class="action-button btn-lunch-out" id="lunchOutBtn" onclick="handleAction('lunch_out')" style="display: none;">
-                    Salir a Comer
-                </button>
-                <button class="action-button btn-lunch-back" id="lunchBackBtn" onclick="handleAction('lunch_back')" style="display: none;">
-                    Volver de Comer
-                </button>
-                <button class="action-button btn-exit" id="exitBtn" onclick="handleAction('exit')" style="display: none;">
-                    Salida
-                </button>
-            </div>
-
-            <div class="manual-entry">
-                <button class="action-button btn-enter" onclick="toggleManualEntry()">Ingreso Manual</button>
-                <div class="manual-entry-content" id="manualEntryContent">
-                    <div class="form-group">
-                        <label for="manualType">Tipo:</label>
-                        <select id="manualType">
-                            <option value="enter">Entrada</option>
-                            <option value="lunch_out">Salida comida</option>
-                            <option value="lunch_back">Vuelta comida</option>
-                            <option value="exit">Salida</option>
-                        </select>
-                        <label for="manualTime">Hora:</label>
-                        <input type="time" id="manualTime">
-                    </div>
-                    <button class="add-btn" onclick="addManualEntry()">Agregar</button>
-                </div>
-            </div>
-
-            <div class="overtime-section" id="overtimeSection">
-                <h3>Horario Extraordinario</h3>
-                <p>Esta acción está fuera del horario establecido. Por favor, proporciona los detalles:</p>
-                
-                <div class="form-group">
-                    <label for="overtimeReason">Motivo:</label>
-                    <select id="overtimeReason">
-                        <option value="">Seleccionar motivo...</option>
-                        <option value="reunion_urgente">Reunión urgente</option>
-                        <option value="proyecto_critico">Proyecto crítico</option>
-                        <option value="problema_tecnico">Problema técnico</option>
-                        <option value="cliente_importante">Atención cliente importante</option>
-                        <option value="formacion">Formación</option>
-                        <option value="otro">Otro</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="overtimeDescription">Descripción:</label>
-                    <input type="text" id="overtimeDescription" placeholder="Describe brevemente la situación...">
-                </div>
-                
-                <button class="confirm-btn" onclick="confirmOvertimeAction()">Confirmar</button>
-            </div>
-
-            <div class="history-section">
-                <button class="history-toggle" onclick="toggleHistory()">Ver Historial Semanal</button>
-                <button class="history-toggle" onclick="exportWeekToExcel()">Exportar a Excel</button>
-                <div class="history-content" id="historyContent"></div>
-            </div>
+            <button class="add-btn" onclick="addManualEntry()">Agregar</button>
+          </div>
         </div>
+
+        <div class="overtime-section" id="overtimeSection">
+          <h3>Horario Extraordinario</h3>
+          <p>
+            Esta acción está fuera del horario establecido. Por favor,
+            proporciona los detalles:
+          </p>
+
+          <div class="form-group">
+            <label for="overtimeReason">Motivo:</label>
+            <select id="overtimeReason">
+              <option value="">Seleccionar motivo...</option>
+              <option value="reunion_urgente">Reunión urgente</option>
+              <option value="proyecto_critico">Proyecto crítico</option>
+              <option value="problema_tecnico">Problema técnico</option>
+              <option value="cliente_importante">
+                Atención cliente importante
+              </option>
+              <option value="formacion">Formación</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="overtimeDescription">Descripción:</label>
+            <input
+              type="text"
+              id="overtimeDescription"
+              placeholder="Describe brevemente la situación..."
+            />
+          </div>
+
+          <button class="confirm-btn" onclick="confirmOvertimeAction()">
+            Confirmar
+          </button>
+        </div>
+
+        <div class="history-section">
+          <button class="history-toggle" onclick="toggleMonthlyHistory()">
+            Ver Historial Mensual
+          </button>
+          <button class="history-toggle" onclick="exportMonthToExcel()">
+            Exportar a Excel
+          </button>
+          <div class="history-content" id="historyContent"></div>
+        </div>
+      </div>
     </div>
 
     <div id="editDayModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="editDayModalTitle">Editar Jornada</h2>
-                <span class="close-btn" onclick="closeEditModal()">&times;</span>
-            </div>
-            
-            <div id="existingEntriesContainer"></div>
-            
-            <div id="addNewEntrySection">
-                <hr style="margin: 20px 0;">
-                
-                <h3>Añadir Nuevo Registro</h3>
-                <div class="form-group">
-                    <label for="newEntryType">Tipo:</label>
-                    <select id="newEntryType">
-                        <option value="enter">Entrada</option>
-                        <option value="lunch_out">Salida comida</option>
-                        <option value="lunch_back">Vuelta comida</option>
-                        <option value="exit">Salida</option>
-                    </select>
-                    <label for="newEntryTime">Hora:</label>
-                    <input type="time" id="newEntryTime">
-                </div>
-                <button class="add-btn" onclick="addNewEntryToModal()">Añadir</button>
-            </div>
-            
-            <hr style="margin: 20px 0;">
-
-            <button class="confirm-btn" onclick="saveDayChanges()">Guardar Cambios</button>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="editDayModalTitle">Editar Jornada</h2>
+          <span class="close-btn" onclick="closeEditModal()">&times;</span>
         </div>
+
+        <div id="existingEntriesContainer"></div>
+
+        <div id="addNewEntrySection">
+          <hr style="margin: 20px 0" />
+
+          <h3>Añadir Nuevo Registro</h3>
+          <div class="form-group">
+            <label for="newEntryType">Tipo:</label>
+            <select id="newEntryType">
+              <option value="enter">Entrada</option>
+              <option value="lunch_out">Salida comida</option>
+              <option value="lunch_back">Vuelta comida</option>
+              <option value="exit">Salida</option>
+            </select>
+            <label for="newEntryTime">Hora:</label>
+            <input type="time" id="newEntryTime" />
+          </div>
+          <button class="add-btn" onclick="addNewEntryToModal()">Añadir</button>
+        </div>
+
+        <hr style="margin: 20px 0" />
+
+        <button class="confirm-btn" onclick="saveDayChanges()">
+          Guardar Cambios
+        </button>
+      </div>
     </div>
     <script src="app.js"></script>
-</body>
+  </body>
 </html>

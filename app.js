@@ -84,8 +84,8 @@ function initApp() {
     }
   };
 
-  reasonSelect.addEventListener('change', clearOvertimeTimer);
-  descriptionInput.addEventListener('input', clearOvertimeTimer);
+  reasonSelect.addEventListener("change", clearOvertimeTimer);
+  descriptionInput.addEventListener("input", clearOvertimeTimer);
 }
 
 function loadTodayData() {
@@ -117,24 +117,21 @@ function loadTodayData() {
 
 function saveTodayData() {
   localStorage.setItem(`workday_${todayData.date}`, JSON.stringify(todayData));
-  saveWeeklyHistory();
+  saveMonthlyHistory();
 }
 
-function saveWeeklyHistory() {
-  const dateToSave = new Date(todayData.date);
-  const weekStart = getMonday(dateToSave);
-  const weekKey = `week_${weekStart.toISOString().split("T")[0]}`;
+function saveMonthlyHistory() {
+  const [year, month, day] = todayData.date.split("-").map(Number);
+  const dateToSave = new Date(year, month - 1, day);
+  const monthKey = `month_${dateToSave.getFullYear()}-${(
+    dateToSave.getMonth() + 1
+  )
+    .toString()
+    .padStart(2, "0")}`;
 
-  let weekData = JSON.parse(localStorage.getItem(weekKey) || "{}");
-  weekData[todayData.date] = todayData;
-  localStorage.setItem(weekKey, JSON.stringify(weekData));
-}
-
-function getMonday(date) {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  return new Date(d.setDate(diff));
+  let monthData = JSON.parse(localStorage.getItem(monthKey) || "{}");
+  monthData[todayData.date] = todayData;
+  localStorage.setItem(monthKey, JSON.stringify(monthData));
 }
 
 function updateDateTime() {
@@ -303,7 +300,7 @@ function executeAction(
   description = ""
 ) {
   if (action === "lunch_back") {
-    const lunchOutEntry = todayData.entries.find(e => e.type === "lunch_out");
+    const lunchOutEntry = todayData.entries.find((e) => e.type === "lunch_out");
     if (lunchOutEntry) {
       const lunchOutTime = new Date(lunchOutEntry.time);
       const lunchBackTime = time;
@@ -311,9 +308,12 @@ function executeAction(
 
       if (diffMinutes < 40) {
         const returnTime = new Date(lunchOutTime.getTime() + 40 * 60000);
-        const hours = returnTime.getHours().toString().padStart(2, '0');
-        const minutes = returnTime.getMinutes().toString().padStart(2, '0');
-        showAlert(`La comida debe ser de un mínimo de 40 minutos. Deberías volver a las ${hours}:${minutes}.`, "warning");
+        const hours = returnTime.getHours().toString().padStart(2, "0");
+        const minutes = returnTime.getMinutes().toString().padStart(2, "0");
+        showAlert(
+          `La comida debe ser de un mínimo de 40 minutos. Deberías volver a las ${hours}:${minutes}.`,
+          "warning"
+        );
         return;
       }
     }
@@ -469,9 +469,7 @@ function updateDisplay() {
   if (currentState === "in") {
     if (isFriday) {
       const now = new Date();
-      const estimatedExit = new Date(
-        now.getTime() + remainingMinutes * 60000
-      );
+      const estimatedExit = new Date(now.getTime() + remainingMinutes * 60000);
       const exitHour = estimatedExit.getHours().toString().padStart(2, "0");
       const exitMinute = estimatedExit.getMinutes().toString().padStart(2, "0");
       exitElement.textContent = `${exitHour}:${exitMinute}`;
@@ -556,112 +554,165 @@ function toggleManualEntry() {
   manualEntryContent.classList.toggle("active");
 }
 
-function toggleHistory() {
+function toggleMonthlyHistory() {
   const historyContent = document.getElementById("historyContent");
   const isVisible = historyContent.classList.contains("active");
 
   if (isVisible) {
     historyContent.classList.remove("active");
   } else {
-    loadWeeklyHistory();
+    loadMonthlyHistory();
     historyContent.classList.add("active");
   }
 }
 
-function loadWeeklyHistory() {
+function loadMonthlyHistory() {
   const today = new Date();
-  const weekStart = getMonday(today);
-  const weekKey = `week_${weekStart.toISOString().split("T")[0]}`;
+  const monthKey = `month_${today.getFullYear()}-${(today.getMonth() + 1)
+    .toString()
+    .padStart(2, "0")}`;
 
-  const weekData = JSON.parse(localStorage.getItem(weekKey) || "{}");
+  const monthData = JSON.parse(localStorage.getItem(monthKey) || "{}");
   const historyContent = document.getElementById("historyContent");
 
-  let totalWeekMinutes = 0;
-  let dailyHtml = "";
+  let totalMonthMinutes = 0;
+  let weeksHtml = "";
   const todayStr = new Date().toISOString().split("T")[0];
 
-  for (let i = 0; i < 5; i++) {
-    const day = new Date(weekStart);
-    day.setDate(weekStart.getDate() + i);
-    const dayKey = day.toISOString().split("T")[0];
-    const dayData = weekData[dayKey];
+  const daysInMonth = new Date(
+    today.getFullYear(),
+    today.getMonth() + 1,
+    0
+  ).getDate();
+
+  const weeks = {};
+
+  for (let i = 1; i <= daysInMonth; i++) {
+    const day = new Date(today.getFullYear(), today.getMonth(), i);
+    const dayOfWeek = day.getDay();
+
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      continue;
+    }
+
+    const year = day.getFullYear();
+    const month = (day.getMonth() + 1).toString().padStart(2, "0");
+    const dayOfMonth = day.getDate().toString().padStart(2, "0");
+    const dayKey = `${year}-${month}-${dayOfMonth}`;
+
+    const dayData = monthData[dayKey];
 
     if (dayData && dayData.workedMinutes) {
-      totalWeekMinutes += dayData.workedMinutes;
+      totalMonthMinutes += dayData.workedMinutes;
     }
 
-    const dayName = day.toLocaleDateString("es-ES", {
-      weekday: "long",
-      day: "numeric",
-      month: "short",
-    });
+    const weekNumber = getWeekOfYear(day);
 
-    dailyHtml += `<div class="day-record">`;
-    dailyHtml += `<div class="day-header"> <span>${dayName}</span>`;
-
-    if (dayKey <= todayStr) {
-      dailyHtml += `<button class="add-btn" style="padding: 5px 10px;" onclick="openEditModal('${dayKey}')">Editar</button>`;
+    if (!weeks[weekNumber]) {
+      weeks[weekNumber] = { days: [], totalMinutes: 0 };
     }
-    dailyHtml += `</div>`;
 
-    if (dayData && dayData.entries.length > 0) {
-      const workedHours = Math.floor(dayData.workedMinutes / 60);
-      const workedMins = dayData.workedMinutes % 60;
-
-      dailyHtml += `<div class="time-entry"><span>Horas trabajadas:</span><span>${workedHours
-        .toString()
-        .padStart(2, "0")}:${workedMins
-        .toString()
-        .padStart(2, "0")}</span></div>`;
-
-      dayData.entries.forEach((entry) => {
-        const timeStr = `${entry.hour
-          .toString()
-          .padStart(2, "0")}:${entry.minute.toString().padStart(2, "0")}`;
-
-        let entryClass = "";
-        let entryText = `<span>${
-          ACTION_TEXT[entry.type]
-        }:</span><span>${timeStr}</span>`;
-
-        if (entry.isOvertime) {
-          entryClass = "overtime-entry";
-          const reasonText = OVERTIME_REASONS[entry.reason] || entry.reason;
-          entryText += ` <small>(${reasonText})</small>`;
-        }
-
-        dailyHtml += `<div class="time-entry ${entryClass}">${entryText}</div>`;
-      });
-    } else {
-      dailyHtml += `<div class="time-entry"><span>Sin registros</span></div>`;
+    weeks[weekNumber].days.push({ day, dayKey, dayData });
+    if (dayData && dayData.workedMinutes) {
+      weeks[weekNumber].totalMinutes += dayData.workedMinutes;
     }
-    dailyHtml += `</div>`;
   }
-  const totalHours = Math.floor(totalWeekMinutes / 60);
-  const totalMinutes = totalWeekMinutes % 60;
 
-  const headerHtml = `<h3>Historial de la Semana (Total: ${totalHours
+  for (const weekNumber in weeks) {
+    const week = weeks[weekNumber];
+    const weeklyHours = Math.floor(week.totalMinutes / 60);
+    const weeklyMins = week.totalMinutes % 60;
+
+    weeksHtml += `<details class="week-record">`;
+    weeksHtml += `<summary class="week-header">Semana ${weekNumber} <span>(Total: ${weeklyHours
+      .toString()
+      .padStart(2, "0")}:${weeklyMins
+      .toString()
+      .padStart(2, "0")})</span></summary>`;
+
+    let dailyHtml = "";
+    for (const dayInfo of week.days) {
+      const { day, dayKey, dayData } = dayInfo;
+      const dayName = day.toLocaleDateString("es-ES", {
+        weekday: "long",
+        day: "numeric",
+        month: "short",
+      });
+
+      dailyHtml += `<div class="day-record">`;
+      dailyHtml += `<div class="day-header"> <span>${dayName}</span>`;
+
+      if (dayKey <= todayStr) {
+        dailyHtml += `<button class="add-btn" style="padding: 5px 10px;" onclick="openEditModal('${dayKey}')">Editar</button>`;
+      }
+      dailyHtml += `</div>`;
+
+      if (dayData && dayData.entries.length > 0) {
+        const workedHours = Math.floor(dayData.workedMinutes / 60);
+        const workedMins = dayData.workedMinutes % 60;
+
+        dailyHtml += `<div class="time-entry"><span>Horas trabajadas:</span><span>${workedHours
+          .toString()
+          .padStart(2, "0")}:${workedMins
+          .toString()
+          .padStart(2, "0")}</span></div>`;
+
+        dayData.entries.forEach((entry) => {
+          const timeStr = `${entry.hour
+            .toString()
+            .padStart(2, "0")}:${entry.minute.toString().padStart(2, "0")}`;
+
+          let entryClass = "";
+          let entryText = `<span>${
+            ACTION_TEXT[entry.type]
+          }:</span><span>${timeStr}</span>`;
+
+          if (entry.isOvertime) {
+            entryClass = "overtime-entry";
+            const reasonText = OVERTIME_REASONS[entry.reason] || entry.reason;
+            entryText += ` <small>(${reasonText})</small>`;
+          }
+
+          dailyHtml += `<div class="time-entry ${entryClass}">${entryText}</div>`;
+        });
+      } else {
+        dailyHtml += `<div class="time-entry"><span>Sin registros</span></div>`;
+      }
+      dailyHtml += `</div>`;
+    }
+    weeksHtml += dailyHtml;
+    weeksHtml += `</details>`;
+  }
+
+  const totalHours = Math.floor(totalMonthMinutes / 60);
+  const totalMinutes = totalMonthMinutes % 60;
+
+  const headerHtml = `<h3>Historial del Mes (Total: ${totalHours
     .toString()
     .padStart(2, "0")}:${totalMinutes.toString().padStart(2, "0")})</h3>`;
 
-  historyContent.innerHTML = headerHtml + dailyHtml;
+  historyContent.innerHTML = headerHtml + weeksHtml;
 }
 
 function openEditModal(dayKey) {
   const modal = document.getElementById("editDayModal");
   modal.dataset.dayKey = dayKey;
 
-  const weekStart = getMonday(new Date(dayKey));
-  const weekKey = `week_${weekStart.toISOString().split("T")[0]}`;
-  const weekData = JSON.parse(localStorage.getItem(weekKey) || "{}");
-  let dayData = weekData[dayKey];
+  const [year, month, day] = dayKey.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+
+  const monthKey = `month_${date.getFullYear()}-${(date.getMonth() + 1)
+    .toString()
+    .padStart(2, "0")}`;
+  const monthData = JSON.parse(localStorage.getItem(monthKey) || "{}");
+  let dayData = monthData[dayKey];
 
   if (!dayData) {
     dayData = { date: dayKey, entries: [], workedMinutes: 0 };
   }
 
   const modalTitle = document.getElementById("editDayModalTitle");
-  const dayName = new Date(dayKey).toLocaleDateString("es-ES", {
+  const dayName = date.toLocaleDateString("es-ES", {
     weekday: "long",
     year: "numeric",
     month: "long",
@@ -757,9 +808,13 @@ function saveDayChanges() {
   const modal = document.getElementById("editDayModal");
   const dayKey = modal.dataset.dayKey;
 
-  const weekStart = getMonday(new Date(dayKey));
-  const weekKey = `week_${weekStart.toISOString().split("T")[0]}`;
-  const weekData = JSON.parse(localStorage.getItem(weekKey) || "{}");
+  const [year, month, day] = dayKey.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+
+  const monthKey = `month_${date.getFullYear()}-${(date.getMonth() + 1)
+    .toString()
+    .padStart(2, "0")}`;
+  const monthData = JSON.parse(localStorage.getItem(monthKey) || "{}");
 
   const newEntries = [];
   const entryElements = document.querySelectorAll(
@@ -771,8 +826,7 @@ function saveDayChanges() {
     const type = el.querySelector('input[type="hidden"]').value;
     const [hour, minute] = timeStr.split(":").map(Number);
 
-    const entryDate = new Date(dayKey);
-    entryDate.setHours(hour, minute, 0, 0);
+    const entryDate = new Date(year, month - 1, day, hour, minute);
 
     newEntries.push({
       type: type,
@@ -786,8 +840,8 @@ function saveDayChanges() {
   });
   newEntries.sort((a, b) => new Date(a.time) - new Date(b.time));
 
-  const lunchOutEntry = newEntries.find(e => e.type === 'lunch_out');
-  const lunchBackEntry = newEntries.find(e => e.type === 'lunch_back');
+  const lunchOutEntry = newEntries.find((e) => e.type === "lunch_out");
+  const lunchBackEntry = newEntries.find((e) => e.type === "lunch_back");
 
   if (lunchOutEntry && lunchBackEntry) {
     const lunchOutTime = new Date(lunchOutEntry.time);
@@ -795,21 +849,24 @@ function saveDayChanges() {
     const diffMinutes = (lunchBackTime - lunchOutTime) / (1000 * 60);
 
     if (diffMinutes < 40) {
-        const returnTime = new Date(lunchOutTime.getTime() + 40 * 60000);
-        const hours = returnTime.getHours().toString().padStart(2, '0');
-        const minutes = returnTime.getMinutes().toString().padStart(2, '0');
-        showAlert(`La comida debe ser de un mínimo de 40 minutos. Deberías volver a las ${hours}:${minutes}.`, "warning");
-        return;
+      const returnTime = new Date(lunchOutTime.getTime() + 40 * 60000);
+      const hours = returnTime.getHours().toString().padStart(2, "0");
+      const minutes = returnTime.getMinutes().toString().padStart(2, "0");
+      showAlert(
+        `La comida debe ser de un mínimo de 40 minutos. Deberías volver a las ${hours}:${minutes}.`,
+        "warning"
+      );
+      return;
     }
   }
 
-  let dayData = weekData[dayKey] || { date: dayKey, entries: [] };
+  let dayData = monthData[dayKey] || { date: dayKey, entries: [] };
   dayData.entries = newEntries;
 
   dayData = recalculateWorkedTimeForDay(dayData);
 
-  weekData[dayKey] = dayData;
-  localStorage.setItem(weekKey, JSON.stringify(weekData));
+  monthData[dayKey] = dayData;
+  localStorage.setItem(monthKey, JSON.stringify(monthData));
 
   if (dayKey === todayData.date) {
     localStorage.setItem(`workday_${dayKey}`, JSON.stringify(dayData));
@@ -819,7 +876,7 @@ function saveDayChanges() {
   }
   showAlert("Jornada actualizada correctamente", "success");
   closeEditModal();
-  loadWeeklyHistory();
+  loadMonthlyHistory();
 }
 
 function recalculateWorkedTimeForDay(dayData) {
@@ -827,10 +884,11 @@ function recalculateWorkedTimeForDay(dayData) {
   let workedMinutes = 0;
   let currentPeriodStart = null;
 
+  const [year, month, day] = dayData.date.split("-").map(Number);
   const entryDate =
     dayData.entries.length > 0
       ? new Date(dayData.entries[0].time)
-      : new Date(dayData.date);
+      : new Date(year, month - 1, day);
   const isFriday = entryDate.getDay() === 5;
   let hadEntry = dayData.entries.some((e) => e.type === "enter");
   dayData.hadLunchOut = dayData.entries.some((e) => e.type === "lunch_out");
@@ -855,15 +913,16 @@ function recalculateWorkedTimeForDay(dayData) {
   return dayData;
 }
 
-function exportWeekToExcel() {
+function exportMonthToExcel() {
   const today = new Date();
-  const weekStart = getMonday(today);
-  const weekKey = `week_${weekStart.toISOString().split("T")[0]}`;
+  const monthKey = `month_${today.getFullYear()}-${(today.getMonth() + 1)
+    .toString()
+    .padStart(2, "0")}`;
 
-  const weekData = JSON.parse(localStorage.getItem(weekKey) || "{}");
+  const monthData = JSON.parse(localStorage.getItem(monthKey) || "{}");
 
-  if (Object.keys(weekData).length === 0) {
-    showAlert("No hay datos para exportar en la semana actual.", "warning");
+  if (Object.keys(monthData).length === 0) {
+    showAlert("No hay datos para exportar en el mes actual.", "warning");
     return;
   }
 
@@ -875,17 +934,21 @@ function exportWeekToExcel() {
     "Salida",
     "Total",
     "Diferencia",
-    "Total Semana",
   ];
   const rows = [headers];
-  let totalWeekMinutes = 0;
+  let totalMonthMinutes = 0;
 
-  for (let i = 0; i < 5; i++) {
-    const day = new Date(weekStart);
-    day.setDate(weekStart.getDate() + i);
+  const daysInMonth = new Date(
+    today.getFullYear(),
+    today.getMonth() + 1,
+    0
+  ).getDate();
+
+  for (let i = 1; i <= daysInMonth; i++) {
+    const day = new Date(today.getFullYear(), today.getMonth(), i);
     const dayKey = day.toISOString().split("T")[0];
-    const dayData = weekData[dayKey];
-    const isFriday = i === 4;
+    const dayData = monthData[dayKey];
+    const isFriday = day.getDay() === 5;
 
     const rowData = {
       Fecha: dayKey,
@@ -895,7 +958,6 @@ function exportWeekToExcel() {
       Salida: "",
       Total: "",
       Diferencia: "",
-      "Total Semana": "",
     };
 
     if (dayData && dayData.entries.length > 0) {
@@ -928,7 +990,7 @@ function exportWeekToExcel() {
       rowData["Total"] = `${workedHours
         .toString()
         .padStart(2, "0")}:${workedMins.toString().padStart(2, "0")}`;
-      totalWeekMinutes += dayData.workedMinutes;
+      totalMonthMinutes += dayData.workedMinutes;
 
       const requiredMinutes = isFriday
         ? SCHEDULE.friday.requiredMinutes
@@ -942,35 +1004,56 @@ function exportWeekToExcel() {
         .toString()
         .padStart(2, "0")}:${diffMins.toString().padStart(2, "0")}`;
     }
-
-    if (isFriday) {
-      const totalHours = Math.floor(totalWeekMinutes / 60);
-      const totalMins = totalWeekMinutes % 60;
-      rowData["Total Semana"] = `${totalHours
-        .toString()
-        .padStart(2, "0")}:${totalMins.toString().padStart(2, "0")}`;
-    }
-
     rows.push(Object.values(rowData));
   }
+
+  const totalHours = Math.floor(totalMonthMinutes / 60);
+  const totalMins = totalMonthMinutes % 60;
+  rows.push([
+    "",
+    "",
+    "",
+    "",
+    "Total Mes",
+    `${totalHours.toString().padStart(2, "0")}:${totalMins
+      .toString()
+      .padStart(2, "0")}`,
+    "",
+  ]);
+
   const worksheet = XLSX.utils.aoa_to_sheet(rows);
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Jornada Semanal");
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Jornada Mensual");
 
   const colWidths = headers.map((header, i) => ({
     wch:
       Math.max(
         header.length,
-        ...rows.slice(1).map((row) => (row[i] || "").toString().length)
+        ...rows.map((row) => (row[i] || "").toString().length)
       ) + 2,
   }));
   worksheet["!cols"] = colWidths;
 
   XLSX.writeFile(
     workbook,
-    `jornada_semanal_${weekStart.toISOString().split("T")[0]}.xlsx`
+    `jornada_mensual_${today.getFullYear()}-${(today.getMonth() + 1)
+      .toString()
+      .padStart(2, "0")}.xlsx`
   );
 }
+
+function getWeekOfYear(date) {
+  const target = new Date(date.valueOf());
+  const dayNr = (date.getDay() + 6) % 7;
+  target.setDate(target.getDate() - dayNr + 3);
+  const firstThursday = target.valueOf();
+  target.setMonth(0, 1);
+  if (target.getDay() !== 4) {
+    target.setMonth(0, 1 + ((4 - target.getDay() + 7) % 7));
+  }
+  return 1 + Math.ceil((firstThursday - target) / 604800000);
+}
+
 document.addEventListener("DOMContentLoaded", initApp);
 
 window.addEventListener("beforeunload", () => {
