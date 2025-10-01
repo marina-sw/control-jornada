@@ -68,6 +68,7 @@ function initApp() {
   updateDateTime();
   updateDisplay();
   updateButtons();
+  updateManualEntryOptionsVisibility();
 
   if (currentState === "in" || currentState === "lunch_back") {
     startWorkTimer();
@@ -551,6 +552,49 @@ function showAlert(message, type) {
 function toggleManualEntry() {
   const manualEntryContent = document.getElementById("manualEntryContent");
   manualEntryContent.classList.toggle("active");
+  updateManualEntryOptionsVisibility();
+}
+
+function updateManualEntryOptionsVisibility() {
+  const manualType = document.getElementById("manualType");
+  const isFriday = new Date().getDay() === 5;
+  updateFridayOptions(manualType, isFriday);
+}
+
+function updateFridayOptions(selectElement, isFriday) {
+  if (!selectElement) return;
+
+  const currentValue = selectElement.value;
+
+  const options = [
+    { value: "enter", text: "Entrada" },
+    { value: "lunch_out", text: "Salida comida" },
+    { value: "lunch_back", text: "Vuelta comida" },
+    { value: "exit", text: "Salida" },
+  ];
+
+  selectElement.innerHTML = "";
+
+  for (const opt of options) {
+    if (isFriday && (opt.value === "lunch_out" || opt.value === "lunch_back")) {
+      continue;
+    }
+    const option = document.createElement("option");
+    option.value = opt.value;
+    option.textContent = opt.text;
+    selectElement.appendChild(option);
+  }
+
+  if (isFriday && (currentValue === "lunch_out" || currentValue === "lunch_back")) {
+    selectElement.value = "enter";
+  } else {
+    const newOptionsValues = Array.from(selectElement.options).map(o => o.value);
+    if(newOptionsValues.includes(currentValue)){
+        selectElement.value = currentValue;
+    } else if (newOptionsValues.length > 0) {
+        selectElement.value = newOptionsValues[0];
+    }
+  }
 }
 
 function toggleMonthlyHistory() {
@@ -699,6 +743,7 @@ function openEditModal(dayKey) {
 
   const [year, month, day] = dayKey.split("-").map(Number);
   const date = new Date(year, month - 1, day);
+  const isFriday = date.getDay() === 5;
 
   const monthKey = `month_${date.getFullYear()}-${(date.getMonth() + 1)
     .toString()
@@ -752,6 +797,9 @@ function openEditModal(dayKey) {
   } else {
     addNewSection.style.display = "block";
   }
+
+  const newEntryType = document.getElementById("newEntryType");
+  updateFridayOptions(newEntryType, isFriday);
 
   modal.style.display = "block";
 }
