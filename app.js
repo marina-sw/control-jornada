@@ -946,7 +946,7 @@ function exportMonthToExcel() {
 
   for (let i = 1; i <= daysInMonth; i++) {
     const day = new Date(today.getFullYear(), today.getMonth(), i);
-    const dayKey = day.toISOString().split("T")[0];
+    const dayKey = `${day.getFullYear()}-${(day.getMonth() + 1).toString().padStart(2, '0')}-${day.getDate().toString().padStart(2, '0')}`;
     const dayData = monthData[dayKey];
     const isFriday = day.getDay() === 5;
 
@@ -1037,6 +1037,139 @@ function exportMonthToExcel() {
   XLSX.writeFile(
     workbook,
     `jornada_mensual_${today.getFullYear()}-${(today.getMonth() + 1)
+      .toString()
+      .padStart(2, "0")}.xlsx`
+  );
+}
+
+function exportPreviousMonthToExcel() {
+  const today = new Date();
+  today.setMonth(today.getMonth() - 1);
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  
+  const monthKey = `month_${year}-${(month + 1)
+    .toString()
+    .padStart(2, "0")}`;
+
+  const monthData = JSON.parse(localStorage.getItem(monthKey) || "{}");
+
+  if (Object.keys(monthData).length === 0) {
+    showAlert("No hay datos para exportar en el mes anterior.", "warning");
+    return;
+  }
+
+  const headers = [
+    "Fecha",
+    "Entrada",
+    "Salida Comer",
+    "Entrada Comer",
+    "Salida",
+    "Total",
+    "Diferencia",
+  ];
+  const rows = [headers];
+  let totalMonthMinutes = 0;
+
+  const daysInMonth = new Date(
+    year,
+    month + 1,
+    0
+  ).getDate();
+
+  for (let i = 1; i <= daysInMonth; i++) {
+    const day = new Date(year, month, i);
+    const dayKey = `${year}-${(month + 1).toString().padStart(2, "0")}-${i.toString().padStart(2, "0")}`;
+    const dayData = monthData[dayKey];
+    const isFriday = day.getDay() === 5;
+
+    const rowData = {
+      Fecha: dayKey,
+      Entrada: "",
+      "Salida Comer": "",
+      "Entrada Comer": "",
+      Salida: "",
+      Total: "",
+      Diferencia: "",
+    };
+
+    if (dayData && dayData.entries.length > 0) {
+      dayData.entries.forEach((entry) => {
+        const timeStr = `${entry.hour
+          .toString()
+          .padStart(2, "0")}:${entry.minute.toString().padStart(2, "0")}`;
+        const reasonText = entry.isOvertime
+          ? ` (${OVERTIME_REASONS[entry.reason] || entry.reason})`
+          : "";
+
+        switch (entry.type) {
+          case "enter":
+            rowData["Entrada"] = timeStr + reasonText;
+            break;
+          case "lunch_out":
+            rowData["Salida Comer"] = timeStr + reasonText;
+            break;
+          case "lunch_back":
+            rowData["Entrada Comer"] = timeStr + reasonText;
+            break;
+          case "exit":
+            rowData["Salida"] = timeStr + reasonText;
+            break;
+        }
+      });
+
+      const workedHours = Math.floor(dayData.workedMinutes / 60);
+      const workedMins = dayData.workedMinutes % 60;
+      rowData["Total"] = `${workedHours
+        .toString()
+        .padStart(2, "0")}:${workedMins.toString().padStart(2, "0")}`;
+      totalMonthMinutes += dayData.workedMinutes;
+
+      const requiredMinutes = isFriday
+        ? SCHEDULE.friday.requiredMinutes
+        : SCHEDULE.weekday.requiredMinutes;
+      const diffMinutes = dayData.workedMinutes - requiredMinutes;
+      const sign = diffMinutes >= 0 ? "+" : "-";
+      const absDiff = Math.abs(diffMinutes);
+      const diffHours = Math.floor(absDiff / 60);
+      const diffMins = absDiff % 60;
+      rowData["Diferencia"] = `${sign}${diffHours
+        .toString()
+        .padStart(2, "0")}:${diffMins.toString().padStart(2, "0")}`;
+    }
+    rows.push(Object.values(rowData));
+  }
+
+  const totalHours = Math.floor(totalMonthMinutes / 60);
+  const totalMins = totalMonthMinutes % 60;
+  rows.push([
+    "",
+    "",
+    "",
+    "",
+    "Total Mes",
+    `${totalHours.toString().padStart(2, "0")}:${totalMins
+      .toString()
+      .padStart(2, "0")}`,
+    "",
+  ]);
+
+  const worksheet = XLSX.utils.aoa_to_sheet(rows);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Jornada Mensual");
+
+  const colWidths = headers.map((header, i) => ({
+    wch:
+      Math.max(
+        header.length,
+        ...rows.map((row) => (row[i] || "").toString().length)
+      ) + 2,
+  }));
+  worksheet["!cols"] = colWidths;
+
+  XLSX.writeFile(
+    workbook,
+    `jornada_mensual_${year}-${(month + 1)
       .toString()
       .padStart(2, "0")}.xlsx`
   );
