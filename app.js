@@ -538,15 +538,14 @@ function updateButtons() {
 }
 
 function showAlert(message, type) {
-  const alertContainer = document.getElementById("alertContainer");
-  const alertDiv = document.createElement("div");
-  alertDiv.className = `alert alert-${type}`;
-  alertDiv.textContent = message;
-  alertContainer.appendChild(alertDiv);
-
-  setTimeout(() => {
-    alertDiv.remove();
-  }, 3000);
+  Swal.fire({
+    position: 'top-end',
+    icon: type,
+    title: message,
+    showConfirmButton: false,
+    timer: 3000,
+    toast: true,
+  });
 }
 
 function toggleManualEntry() {
