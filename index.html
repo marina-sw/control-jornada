@@ -5,47 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Control de Jornada Flexible</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/10.8.6/jsrsasign-all-min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
   </head>
   <body>
-    <!-- Pantalla de Login -->
-    <div id="loginScreen" class="login-screen">
-      <div class="login-container">
-        <div class="login-header">
-          <h1>Control de Jornada Flexible</h1>
-        </div>
-        <div class="login-form">
-          <div class="form-group">
-            <label for="usernameInput">Nombre de Usuario</label>
-            <input 
-              type="text" 
-              id="usernameInput" 
-              placeholder="Indica aquí tu usuario"
-              autocomplete="username"
-              onkeypress="if(event.key==='Enter') handleLogin()"
-            />
-          </div>
-          <button id="loginBtn" class="login-button" onclick="handleLogin()">
-            Entrar
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div id="mainApp" class="container" style="display: none;">
+    <div class="container">
       <div class="header">
         <h1>Control de Jornada Flexible</h1>
-        <div class="user-controls">
-          <span class="user-display">👤 <span id="currentUserDisplay"></span></span>
-          <button class="sync-btn" id="syncBtn" onclick="manualSync()" title="Sincronizar ahora">
-            🔄
-          </button>
-          <button class="logout-btn" onclick="handleLogout()">
-            🚪
-          </button>
-        </div>
       </div>
 
       <div class="date-time">
@@ -214,9 +180,9 @@
         </button>
       </div>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
-    <script src="auth.js"></script>
+    <script>
+    </script>
     <script src="app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
   </body>
 </html>
