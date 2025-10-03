@@ -4,14 +4,60 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Control de Jornada Flexible</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/11.1.0/jsrsasign-all-min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
   </head>
   <body>
-    <div class="container">
+    <div id="loginScreen" class="login-screen">
+      <div class="login-container">
+        <div class="login-header">
+          <h1>Control de Jornada Flexible</h1>
+          <p>Sincronización multi-dispositivo ahora disponible!!</p>
+        </div>
+        <div class="login-form">
+          <div class="form-group">
+            <label for="usernameInput">Nombre de Usuario</label>
+            <input 
+              type="text" 
+              id="usernameInput" 
+              placeholder="Introduce tu usuario"
+              autocomplete="username"
+              onkeypress="if(event.key==='Enter') handleLogin()"
+            />
+            <small>Sin contraseña. Usa el mismo usuario en todos tus dispositivos.</small>
+          </div>
+          <button id="loginBtn" class="login-button" onclick="handleLogin()">
+            Entrar
+          </button>
+        </div>
+        <div class="login-footer">
+          <details>
+            <summary>Ver información de sincronización</summary>
+            <ul style="text-align: left; margin-top: 10px; font-size: 12px;">
+              <li>✅ Sincronización automática cada 5 minutos</li>
+              <li>✅ Sincronización al cambiar de pestaña</li>
+              <li>✅ Sincronización al cerrar sesión</li>
+              <li>✅ Botón de sincronización manual disponible</li>
+            </ul>
+          </details>
+        </div>
+      </div>
+    </div>
+
+    <div id="mainApp" class="container" style="display: none;">
       <div class="header">
         <h1>Control de Jornada Flexible</h1>
+        <div class="user-controls">
+          <span class="user-display">👤 <span id="currentUserDisplay"></span></span>
+          <button class="sync-btn" id="syncBtn" onclick="manualSync()" title="Sincronizar ahora">
+            🔄
+          </button>
+          <button class="logout-btn" onclick="handleLogout()">
+            🚪 Salir
+          </button>
+        </div>
       </div>
 
       <div class="date-time">
@@ -146,6 +192,7 @@
       </div>
     </div>
 
+    <!-- Modal de edición -->
     <div id="editDayModal" class="modal">
       <div class="modal-content">
         <div class="modal-header">
@@ -180,9 +227,11 @@
         </button>
       </div>
     </div>
-    <script>
-    </script>
-    <script src="app.js"></script>
+
+    <!-- Scripts - ORDEN IMPORTANTE -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+    <script src="data-manager.js"></script>
+    <script src="auth.js"></script>
+    <script src="app.js"></script>
   </body>
 </html>

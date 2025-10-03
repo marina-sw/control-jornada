@@ -91,10 +91,10 @@ function initApp() {
 
 function loadTodayData() {
   const today = new Date().toISOString().split("T")[0];
-  const savedData = localStorage.getItem(`workday_${today}`);
+  const savedData = dataManager.getWorkday(today);
 
   if (savedData) {
-    todayData = JSON.parse(savedData);
+    todayData = savedData;
     todayData.hadLunchOut = todayData.entries.some(
       (e) => e.type === "lunch_out"
     );
@@ -117,22 +117,8 @@ function loadTodayData() {
 }
 
 function saveTodayData() {
-  localStorage.setItem(`workday_${todayData.date}`, JSON.stringify(todayData));
-  saveMonthlyHistory();
-}
-
-function saveMonthlyHistory() {
-  const [year, month, day] = todayData.date.split("-").map(Number);
-  const dateToSave = new Date(year, month - 1, day);
-  const monthKey = `month_${dateToSave.getFullYear()}-${(
-    dateToSave.getMonth() + 1
-  )
-    .toString()
-    .padStart(2, "0")}`;
-
-  let monthData = JSON.parse(localStorage.getItem(monthKey) || "{}");
-  monthData[todayData.date] = todayData;
-  localStorage.setItem(monthKey, JSON.stringify(monthData));
+  dataManager.setWorkday(todayData.date, todayData);
+  // La sincronización con Google Sheets se hace automáticamente cada 5 minutos
 }
 
 function updateDateTime() {
@@ -611,11 +597,10 @@ function toggleMonthlyHistory() {
 
 function loadMonthlyHistory() {
   const today = new Date();
-  const monthKey = `month_${today.getFullYear()}-${(today.getMonth() + 1)
-    .toString()
-    .padStart(2, "0")}`;
-
-  const monthData = JSON.parse(localStorage.getItem(monthKey) || "{}");
+  const year = today.getFullYear();
+  const month = (today.getMonth() + 1).toString().padStart(2, "0");
+  
+  const monthData = dataManager.getMonthDays(year, month);
   const historyContent = document.getElementById("historyContent");
 
   let totalMonthMinutes = 0;
@@ -638,10 +623,10 @@ function loadMonthlyHistory() {
       continue;
     }
 
-    const year = day.getFullYear();
-    const month = (day.getMonth() + 1).toString().padStart(2, "0");
+    const dayYear = day.getFullYear();
+    const dayMonth = (day.getMonth() + 1).toString().padStart(2, "0");
     const dayOfMonth = day.getDate().toString().padStart(2, "0");
-    const dayKey = `${year}-${month}-${dayOfMonth}`;
+    const dayKey = `${dayYear}-${dayMonth}-${dayOfMonth}`;
 
     const dayData = monthData[dayKey];
 
@@ -690,7 +675,7 @@ function loadMonthlyHistory() {
       }
       dailyHtml += `</div>`;
 
-      if (dayData && dayData.entries.length > 0) {
+      if (dayData && dayData.entries && dayData.entries.length > 0) {
         const workedHours = Math.floor(dayData.workedMinutes / 60);
         const workedMins = dayData.workedMinutes % 60;
 
@@ -745,11 +730,7 @@ function openEditModal(dayKey) {
   const date = new Date(year, month - 1, day);
   const isFriday = date.getDay() === 5;
 
-  const monthKey = `month_${date.getFullYear()}-${(date.getMonth() + 1)
-    .toString()
-    .padStart(2, "0")}`;
-  const monthData = JSON.parse(localStorage.getItem(monthKey) || "{}");
-  let dayData = monthData[dayKey];
+  let dayData = dataManager.getWorkday(dayKey);
 
   if (!dayData) {
     dayData = { date: dayKey, entries: [], workedMinutes: 0 };
@@ -858,11 +839,6 @@ function saveDayChanges() {
   const [year, month, day] = dayKey.split("-").map(Number);
   const date = new Date(year, month - 1, day);
 
-  const monthKey = `month_${date.getFullYear()}-${(date.getMonth() + 1)
-    .toString()
-    .padStart(2, "0")}`;
-  const monthData = JSON.parse(localStorage.getItem(monthKey) || "{}");
-
   const newEntries = [];
   const entryElements = document.querySelectorAll(
     "#existingEntriesContainer .edit-entry"
@@ -907,16 +883,14 @@ function saveDayChanges() {
     }
   }
 
-  let dayData = monthData[dayKey] || { date: dayKey, entries: [] };
+  let dayData = dataManager.getWorkday(dayKey) || { date: dayKey, entries: [] };
   dayData.entries = newEntries;
 
   dayData = recalculateWorkedTimeForDay(dayData);
 
-  monthData[dayKey] = dayData;
-  localStorage.setItem(monthKey, JSON.stringify(monthData));
+  dataManager.setWorkday(dayKey, dayData);
 
   if (dayKey === todayData.date) {
-    localStorage.setItem(`workday_${dayKey}`, JSON.stringify(dayData));
     loadTodayData();
     updateDisplay();
     updateButtons();
@@ -962,11 +936,10 @@ function recalculateWorkedTimeForDay(dayData) {
 
 function exportMonthToExcel() {
   const today = new Date();
-  const monthKey = `month_${today.getFullYear()}-${(today.getMonth() + 1)
-    .toString()
-    .padStart(2, "0")}`;
-
-  const monthData = JSON.parse(localStorage.getItem(monthKey) || "{}");
+  const year = today.getFullYear();
+  const month = (today.getMonth() + 1).toString().padStart(2, "0");
+  
+  const monthData = dataManager.getMonthDays(year, month);
 
   if (Object.keys(monthData).length === 0) {
     showAlert("No hay datos para exportar en el mes actual.", "warning");
@@ -1007,7 +980,7 @@ function exportMonthToExcel() {
       Diferencia: "",
     };
 
-    if (dayData && dayData.entries.length > 0) {
+    if (dayData && dayData.entries && dayData.entries.length > 0) {
       dayData.entries.forEach((entry) => {
         const timeStr = `${entry.hour
           .toString()
@@ -1093,13 +1066,9 @@ function exportPreviousMonthToExcel() {
   const today = new Date();
   today.setMonth(today.getMonth() - 1);
   const year = today.getFullYear();
-  const month = today.getMonth();
+  const month = (today.getMonth() + 1).toString().padStart(2, "0");
   
-  const monthKey = `month_${year}-${(month + 1)
-    .toString()
-    .padStart(2, "0")}`;
-
-  const monthData = JSON.parse(localStorage.getItem(monthKey) || "{}");
+  const monthData = dataManager.getMonthDays(year, month);
 
   if (Object.keys(monthData).length === 0) {
     showAlert("No hay datos para exportar en el mes anterior.", "warning");
@@ -1120,13 +1089,13 @@ function exportPreviousMonthToExcel() {
 
   const daysInMonth = new Date(
     year,
-    month + 1,
+    parseInt(month),
     0
   ).getDate();
 
   for (let i = 1; i <= daysInMonth; i++) {
-    const day = new Date(year, month, i);
-    const dayKey = `${year}-${(month + 1).toString().padStart(2, "0")}-${i.toString().padStart(2, "0")}`;
+    const day = new Date(year, parseInt(month) - 1, i);
+    const dayKey = `${year}-${month}-${i.toString().padStart(2, "0")}`;
     const dayData = monthData[dayKey];
     const isFriday = day.getDay() === 5;
 
@@ -1140,7 +1109,7 @@ function exportPreviousMonthToExcel() {
       Diferencia: "",
     };
 
-    if (dayData && dayData.entries.length > 0) {
+    if (dayData && dayData.entries && dayData.entries.length > 0) {
       dayData.entries.forEach((entry) => {
         const timeStr = `${entry.hour
           .toString()
@@ -1216,9 +1185,7 @@ function exportPreviousMonthToExcel() {
 
   XLSX.writeFile(
     workbook,
-    `jornada_mensual_${year}-${(month + 1)
-      .toString()
-      .padStart(2, "0")}.xlsx`
+    `jornada_mensual_${year}-${month}.xlsx`
   );
 }
 
