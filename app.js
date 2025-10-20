@@ -52,10 +52,10 @@ const ACTION_TEXT = {
 };
 
 function initApp() {
+  const today = new Date().toISOString().split("T")[0];
   loadTodayData();
 
-  const today = new Date().toISOString().split("T")[0];
-  if (todayData.date !== today) {
+  if (!todayData || todayData.date !== today || !todayData.entries) {
     todayData = {
       date: today,
       entries: [],
@@ -92,8 +92,9 @@ function initApp() {
 function loadTodayData() {
   const today = new Date().toISOString().split("T")[0];
   const savedData = dataManager.getWorkday(today);
+  console.log('Cargando datos del día:', today, savedData);
 
-  if (savedData) {
+  if (savedData && savedData.entries) {
     todayData = savedData;
     todayData.hadLunchOut = todayData.entries.some(
       (e) => e.type === "lunch_out"
@@ -114,6 +115,7 @@ function loadTodayData() {
   } else {
     todayData.date = today;
   }
+  console.log('Estado actual después de cargar:', currentState, todayData);
 }
 
 function saveTodayData() {

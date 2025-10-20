@@ -83,11 +83,13 @@ async function getAuthHeaders() {
 }
 
 function initAuth() {
-  const savedUser = sessionStorage.getItem('currentUser');
+  const savedUser = localStorage.getItem('currentUser');
   if (savedUser) {
     currentUser = savedUser;
     showMainApp();
-    loadUserDataFromCloud();
+    loadUserDataFromCloud().then(() => {
+      if (typeof initApp === 'function') initApp();
+    });
     startAutoSync();
   } else {
     showLoginScreen();
@@ -125,13 +127,12 @@ async function handleLogin() {
     await verifyOrCreateUser(username);
     
     currentUser = username;
-    sessionStorage.setItem('currentUser', username);
+    localStorage.setItem('currentUser', username);
     
     // Cargar datos desde Google Sheets al DataManager
     await loadUserDataFromCloud();
     
     showMainApp();
-    if (typeof initApp === 'function') initApp();
     startAutoSync();
     showAlert(`Bienvenido, ${username}!`, 'success');
   } catch (error) {
@@ -148,7 +149,7 @@ function handleLogout() {
       stopAutoSync();
       dataManager.clearCache();
       currentUser = null;
-      sessionStorage.removeItem('currentUser');
+      localStorage.removeItem('currentUser');
       showLoginScreen();
       document.getElementById('usernameInput').value = '';
     });
