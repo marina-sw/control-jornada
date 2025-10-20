@@ -36,10 +36,10 @@
           <details>
             <summary>Ver información de sincronización</summary>
             <ul style="text-align: left; margin-top: 10px; font-size: 12px;">
-              <li>✅ Sincronización automática cada 5 minutos</li>
+              <li>✅ Sincronización automática al registrar datos</li>
+              <li>✅ Sincronización al editar historial</li>
               <li>✅ Sincronización al cambiar de pestaña</li>
               <li>✅ Sincronización al cerrar sesión</li>
-              <li>✅ Botón de sincronización manual disponible</li>
             </ul>
           </details>
         </div>
@@ -51,9 +51,9 @@
         <h1>Control de Jornada Flexible</h1>
         <div class="user-controls">
           <span class="user-display">👤 <span id="currentUserDisplay"></span></span>
-          <button class="sync-btn" id="syncBtn" onclick="manualSync()" title="Sincronizar ahora">
-            🔄
-          </button>
+          <span class="sync-status" id="syncStatus" title="Estado de sincronización">
+            ✓
+          </span>
           <button class="logout-btn" onclick="handleLogout()">
             🚪 Salir
           </button>

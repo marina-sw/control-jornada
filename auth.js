@@ -234,9 +234,46 @@ async function syncDataToCloud() {
   }
 }
 
+async function syncDataToCloudWithFeedback() {
+  if (!currentUser) return;
+  
+  const statusEl = document.getElementById('syncStatus');
+  if (statusEl) {
+    statusEl.textContent = '⟳';
+    statusEl.classList.add('syncing');
+  }
+  
+  try {
+    const success = await dataManager.saveAllData(currentUser);
+    if (statusEl) {
+      if (success) {
+        statusEl.textContent = '✓';
+        statusEl.classList.remove('syncing');
+        statusEl.classList.add('synced');
+        setTimeout(() => {
+          statusEl.classList.remove('synced');
+        }, 2000);
+      } else {
+        statusEl.textContent = '⚠';
+        statusEl.classList.remove('syncing');
+        statusEl.classList.add('error');
+      }
+    }
+    return success;
+  } catch (error) {
+    console.error('Error sincronizando datos:', error);
+    if (statusEl) {
+      statusEl.textContent = '⚠';
+      statusEl.classList.remove('syncing');
+      statusEl.classList.add('error');
+    }
+    return false;
+  }
+}
+
 // Sincronización automática
 function startAutoSync() {
-  // Sincronizar cada 5 minutos
+  // Sincronizar cada 5 minutos (como respaldo)
   syncInterval = setInterval(() => {
     console.log('Sincronización automática iniciada...');
     syncDataToCloud();
@@ -265,21 +302,6 @@ function stopAutoSync() {
   }
 }
 
-function manualSync() {
-  const btn = document.getElementById('syncBtn');
-  btn.disabled = true;
-  btn.textContent = 'Sincronizando...';
-  
-  syncDataToCloud().then((success) => {
-    if (success) {
-      showAlert('Datos sincronizados correctamente', 'success');
-    } else {
-      showAlert('Error en la sincronización', 'error');
-    }
-    btn.disabled = false;
-    btn.textContent = '🔄';
-  });
-}
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initAuth);

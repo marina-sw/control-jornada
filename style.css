@@ -4,6 +4,49 @@
   box-sizing: border-box;
 }
 
+.sync-status {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 8px 12px;
+  border-radius: 50%;
+  font-size: 16px;
+  min-width: 36px;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  cursor: help;
+}
+
+.sync-status.syncing {
+  background: rgba(255, 193, 7, 0.3);
+}
+
+.sync-status.synced {
+  background: rgba(76, 175, 80, 0.3);
+}
+
+.sync-status.error {
+  background: rgba(244, 67, 54, 0.3);
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
     Ubuntu, Cantarell, sans-serif;

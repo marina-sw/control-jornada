@@ -118,7 +118,7 @@ function loadTodayData() {
 
 function saveTodayData() {
   dataManager.setWorkday(todayData.date, todayData);
-  // La sincronización con Google Sheets se hace automáticamente cada 5 minutos
+  syncDataToCloudWithFeedback();
 }
 
 function updateDateTime() {
@@ -832,7 +832,7 @@ function addNewEntryToModal() {
   document.getElementById("newEntryTime").value = "";
 }
 
-function saveDayChanges() {
+async function saveDayChanges() {
   const modal = document.getElementById("editDayModal");
   const dayKey = modal.dataset.dayKey;
 
@@ -889,6 +889,7 @@ function saveDayChanges() {
   dayData = recalculateWorkedTimeForDay(dayData);
 
   dataManager.setWorkday(dayKey, dayData);
+  await syncDataToCloudWithFeedback();
 
   if (dayKey === todayData.date) {
     loadTodayData();
